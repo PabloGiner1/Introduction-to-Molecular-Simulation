@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Ejecutar Simulacion",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/simulation",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "Compilar TFIII"
+        }
+    ]
+}

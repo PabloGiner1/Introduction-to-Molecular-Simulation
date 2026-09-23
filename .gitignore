@@ -1,0 +1,15 @@
+# Compilación
+bin/
+build/
+*.o
+*.d
+
+# Datos brutos de las simulaciones
+data/raw/
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store

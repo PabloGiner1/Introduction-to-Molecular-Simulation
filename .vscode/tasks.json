@@ -1,0 +1,24 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Compilar TFIII",
+            "type": "shell",
+            "command": "/bin/zsh",
+            "args": [
+                "-c",
+                "mkdir -p \"${workspaceFolder}/bin\" && clang++ -std=c++17 -Wall -Wextra -Wpedantic -g \"${workspaceFolder}/src/main.cpp\" \"${workspaceFolder}/src/simulation.cpp\" \"${workspaceFolder}/src/models.cpp\" \"${workspaceFolder}/src/integrators.cpp\" -I\"${workspaceFolder}/include\" -o \"${workspaceFolder}/bin/simulation\""
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
