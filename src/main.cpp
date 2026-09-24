@@ -21,7 +21,7 @@ int main(void) {
     parametros.x0 = 1.0;                                            // Posición inicial
     parametros.p0 = 0.0;                                            // Momento inicial
     parametros.eta = 0.1;                                           // Amortiguamiento: 0.1, 1.0, 10
-    parametros.h = 0.0001;                                          // Paso de tiempo: 0.1, 0.001, 0.0001, 0.00001
+    parametros.h = 0.1;                                          // Paso de tiempo: 0.1, 0.001, 0.0001, 0.00001
     parametros.t_max = 10000.0;                                     // Tiempo máximo de simulación
     parametros.algorithm = Algorithm::EulerMaruyama;                //Alrgoritmo de integración: Euler-Maruyama, Runge-Kutta, Verlet
 
@@ -35,7 +35,7 @@ int main(void) {
         parametros.h,
         parametros.t_max
     );
-
+    printf("Parametros guardados en data/raw/parameters.txt\n");
 
     run_simulation(parametros);
     std::cout << "Compilacion y ejecucion correctas.\n";

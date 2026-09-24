@@ -32,6 +32,18 @@
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "label": "Analizar resultados",
+            "type": "shell",
+            "command": "${command:python.interpreterPath}",
+            "args": [
+                "${workspaceFolder}/analysis/harmonic_analysis.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
         }
     ]
 }
