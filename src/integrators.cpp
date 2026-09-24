@@ -1,8 +1,12 @@
+#include "integrators.hpp"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-#include "simulacion.h" // Importante: incluir tu propio .h con comillas
+#include <filesystem>
+#include <fstream>
+
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846 
@@ -10,7 +14,19 @@
 
 
 
-void Euler_Maruyama(double x, double p, double ŋ, double h, double t_max)
+void guardar_parametros(double x, double p, double eta, double h, double t_max)
+{
+    std::filesystem::create_directories("data/raw");
+
+    std::ofstream file("data/raw/parameters.txt");
+    file << "x=" << x << '\n';
+    file << "p=" << p << '\n';
+    file << "eta=" << eta << '\n';
+    file << "h=" << h << '\n';
+    file << "t_max=" << t_max << '\n';
+}
+
+void Euler_Maruyama(double x, double p, double eta, double h, double t_max)
 {
     printf("Hola \n");
     double x_n, p_n, Z, E_c, E_p;
@@ -22,7 +38,8 @@ void Euler_Maruyama(double x, double p, double ŋ, double h, double t_max)
     //Creamos archivo de texto para los datos con forma: t, x_n, p_n, E_c, E_p
     FILE*f;
     char filename[50];
-    snprintf(filename, sizeof(filename), "datos_%.1f_%.4f.txt", ŋ, h);
+    std::filesystem::create_directories("data/raw");
+    snprintf(filename, sizeof(filename), "data/raw/datos_%.1f_%.4f.txt", eta, h);
     f = fopen(filename, "w");
     if (f == NULL) {
         perror("Error al abrir datos.txt");
@@ -33,8 +50,8 @@ void Euler_Maruyama(double x, double p, double ŋ, double h, double t_max)
     for (double t = 0; t < t_max; t += h)
     {
         x_n = x + p * h;
-        Z= sqrt(2 * ŋ * h)  * rand_gaussian();
-        p_n = p + (-ŋ * p - x) * h + Z;
+        Z= sqrt(2 * eta * h)  * rand_gaussian();
+        p_n = p + (-eta * p - x) * h + Z;
 
         x = x_n;
         p = p_n;
@@ -56,4 +73,32 @@ void Euler_Maruyama(double x, double p, double ŋ, double h, double t_max)
 
     fclose(f);
     printf("Simulacion completada.\n");
+}
+
+// Genera un número con distribución gaussiana N(0, 1)
+double rand_gaussian(void) {
+    static int tiene_guardado = 0;
+    static double z1;
+
+    // La transformación genera 2 números a la vez, guardamos uno para la siguiente llamada
+    if (tiene_guardado) {
+        tiene_guardado = 0;
+        return z1;
+    }
+
+    double u1, u2;
+    // u1 debe ser estrictamente mayor que 0 para evitar log(0)
+    do {
+        u1 = (double)rand() / RAND_MAX;
+    } while (u1 <= 0.0);
+    
+    u2 = (double)rand() / RAND_MAX;
+
+    // Transformación de Box-Muller
+    double radio = sqrt(-2.0 * log(u1));
+    double z0 = radio * cos(2.0 * M_PI * u2);
+    z1 = radio * sin(2.0 * M_PI * u2);
+
+    tiene_guardado = 1;
+    return z0;
 }

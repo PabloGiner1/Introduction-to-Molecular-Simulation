@@ -3,10 +3,23 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-# 1. Cargar los datos guardados desde C (datos_ŋ_h.txt)
+project_root = Path(__file__).resolve().parents[1]
+parameters_file = project_root / "data" / "raw" / "parameters.txt"
+
+parameters = {}
+with parameters_file.open() as file:
+    for line in file:
+        name, value = line.strip().split("=", maxsplit=1)
+        parameters[name] = float(value)
+
+eta = parameters["eta"]
+h = parameters["h"]
+
+# 1. Cargar los datos guardados desde C (datos_eta_h.txt)
 # Columnas: 0: t, 1: x, 2: p, 3: E_c, 4: E_p
-data = np.loadtxt(f"datos_{ŋ}_{h}.txt")
-carpeta = Path("data\raw")
+data_file = project_root / "data" / "raw" / f"datos_{eta:.1f}_{h:.4f}.txt"
+data = np.loadtxt(data_file)
+carpeta = project_root / "data" / "raw"
 
 
 t = data[:, 0]

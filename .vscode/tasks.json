@@ -4,11 +4,24 @@
         {
             "label": "Compilar TFIII",
             "type": "shell",
-            "command": "/bin/zsh",
+            "command": "clang++",
             "args": [
-                "-c",
-                "mkdir -p \"${workspaceFolder}/bin\" && clang++ -std=c++17 -Wall -Wextra -Wpedantic -g \"${workspaceFolder}/src/main.cpp\" \"${workspaceFolder}/src/simulation.cpp\" \"${workspaceFolder}/src/models.cpp\" \"${workspaceFolder}/src/integrators.cpp\" -I\"${workspaceFolder}/include\" -o \"${workspaceFolder}/bin/simulation\""
+                "-std=c++17",
+                "-Wall",
+                "-Wextra",
+                "-Wpedantic",
+                "-g",
+                "${workspaceFolder}/src/main.cpp",
+                "${workspaceFolder}/src/simulation.cpp",
+                "${workspaceFolder}/src/models.cpp",
+                "${workspaceFolder}/src/integrators.cpp",
+                "-I${workspaceFolder}/include",
+                "-o",
+                "${workspaceFolder}/bin/simulation"
             ],
+            "windows": {
+                "command": "g++"
+            },
             "options": {
                 "cwd": "${workspaceFolder}"
             },
