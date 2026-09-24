@@ -16,7 +16,13 @@
             "windows": {
                 "program": "${workspaceFolder}/bin/simulation.exe",
                 "MIMode": "gdb",
-                "miDebuggerPath": "C:/msys64/ucrt64/bin/gdb.exe"
+                "miDebuggerPath": "C:/msys64/ucrt64/bin/gdb.exe",
+                "environment": [
+                    {
+                        "name": "PATH",
+                        "value": "C:/msys64/ucrt64/bin;${env:PATH}"
+                    }
+                ]
             },
             "osx": {
                 "program": "${workspaceFolder}/bin/simulation",

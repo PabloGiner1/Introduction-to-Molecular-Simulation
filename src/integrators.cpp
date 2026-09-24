@@ -33,7 +33,7 @@ void Euler_Maruyama(double x, double p, double eta, double h, double t_max)
     // N_Int es el numero de medidas que queremos, si guardamos cada vez cuidado que acabas con 10Gbs en un archivo de texto
     int N_Int = 1000, contador = 0;
     double Int = (t_max / (h * N_Int));
-    printf("Int: %.17f \n", Int);
+    printf("Intervalos: %.0f \n", Int);
 
     //Creamos archivo de texto para los datos con forma: t, x_n, p_n, E_c, E_p
     FILE*f;

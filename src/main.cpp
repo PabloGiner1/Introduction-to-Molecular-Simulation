@@ -14,8 +14,6 @@ int main(void) {
 
     // Empezamos a poner los parametros necesarios para Euler-Maruyama en el OA
     
-    double x, eta, p, h, t_max;
-
     std::cout << "TFIII - Simulacion Molecular\n";
 
     Parameters parametros;
@@ -30,7 +28,13 @@ int main(void) {
 
 
     rand_gaussian(); // Llamada inicial para establecer la semilla
-    guardar_parametros(x, p, eta, h, t_max);
+    guardar_parametros(
+        parametros.x0,
+        parametros.p0,
+        parametros.eta,
+        parametros.h,
+        parametros.t_max
+    );
 
 
     run_simulation(parametros);
