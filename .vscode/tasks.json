@@ -2,13 +2,35 @@
     "version": "2.0.0",
     "tasks": [
         {
+<<<<<<< HEAD
+            "label": "Compilar TFIII",
+            "type": "shell",
+            "command": "clang++",
+            "args": [
+                "-std=c++17",
+                "-Wall",
+                "-Wextra",
+                "-Wpedantic",
+                "-g",
+                "${workspaceFolder}/src/main.cpp",
+                "${workspaceFolder}/src/simulation.cpp",
+                "${workspaceFolder}/src/models.cpp",
+                "${workspaceFolder}/src/integrators.cpp",
+                "-I${workspaceFolder}/include",
+                "-o",
+                "${workspaceFolder}/bin/simulation"
+=======
             "label": "Preparar carpetas",
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "args": [
                 "-c",
                 "from pathlib import Path; [Path(p).mkdir(parents=True, exist_ok=True) for p in [\"bin\", \"data/raw\", \"results/figures\"]]"
+>>>>>>> 6e59527563090f56cb92d37dd26ef7dfaeef89bd
             ],
+            "windows": {
+                "command": "g++"
+            },
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -65,6 +87,10 @@
             }
         },
         {
+<<<<<<< HEAD
+            "label": "Analizar resultados",
+            "type": "shell",
+=======
             "label": "Ejecutar simulacion",
             "type": "process",
             "command": "${workspaceFolder}/bin/simulation",
@@ -79,6 +105,7 @@
         {
             "label": "Analizar resultados",
             "type": "process",
+>>>>>>> 6e59527563090f56cb92d37dd26ef7dfaeef89bd
             "command": "${command:python.interpreterPath}",
             "args": [
                 "${workspaceFolder}/analysis/harmonic_analysis.py"
@@ -87,6 +114,8 @@
                 "cwd": "${workspaceFolder}"
             },
             "problemMatcher": []
+<<<<<<< HEAD
+=======
         },
         {
             "label": "Simular y analizar",
@@ -97,6 +126,7 @@
             ],
             "dependsOrder": "sequence",
             "problemMatcher": []
+>>>>>>> 6e59527563090f56cb92d37dd26ef7dfaeef89bd
         }
     ]
 }

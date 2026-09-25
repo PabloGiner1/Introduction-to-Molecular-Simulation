@@ -1,4 +1,25 @@
 #include "simulation.hpp"
+<<<<<<< HEAD
+#include "integrators.hpp"
+
+void run_simulation(const Parameters& parameters) {
+    switch (parameters.algorithm) {
+        case Algorithm::EulerMaruyama:
+            Euler_Maruyama(
+                parameters.x0,
+                parameters.p0,
+                parameters.eta,
+                parameters.h,
+                parameters.t_max
+            );
+            break;
+
+        case Algorithm::Runge_Kutta:
+            // Runge-Kutta y Verlet estocastico...
+
+            break;
+    }
+=======
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -95,4 +116,5 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
 
     // Cerramos el archivo
     fclose(file);
+>>>>>>> 6e59527563090f56cb92d37dd26ef7dfaeef89bd
 }

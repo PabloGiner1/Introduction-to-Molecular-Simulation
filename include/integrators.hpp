@@ -1,3 +1,24 @@
+<<<<<<< HEAD
+#pragma once
+
+double rand_gaussian();
+
+void guardar_parametros(
+    double x,
+    double p,
+    double eta,
+    double h,
+    double t_max
+);
+
+void Euler_Maruyama(
+    double x,
+    double p,
+    double eta,
+    double h,
+    double t_max
+);
+=======
 #ifndef INTEGRATORS_HPP
 #define INTEGRATORS_HPP
 
@@ -40,3 +61,4 @@ void gjfStep(int model, double *x, double *v, SimulationParameters simulation,
 double randGaussian();
 
 #endif
+>>>>>>> 6e59527563090f56cb92d37dd26ef7dfaeef89bd
