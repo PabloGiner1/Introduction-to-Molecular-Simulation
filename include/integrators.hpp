@@ -27,8 +27,16 @@ void integrationStep(int algorithm, int model, double *x, double *v, SimulationP
                      ModelParameters modelParameters);
 
 // Los que hay que hacer para que realice un paso de cada algoritmo
-void eulerMaruyamaStep();
-void rungeKuttaStep();
-void gjfStep();
+void eulerMaruyamaStep(int model, double *x, double *v, SimulationParameters simulation,
+                       ModelParameters modelParameters);
+
+void rungeKuttaStep(int model, double *x, double *v, SimulationParameters simulation,
+                    ModelParameters modelParameters);
+
+void gjfStep(int model, double *x, double *v, SimulationParameters simulation,
+             ModelParameters modelParameters);
+
+// Genera un número aleatorio gaussiano N(0,1)
+double randGaussian();
 
 #endif

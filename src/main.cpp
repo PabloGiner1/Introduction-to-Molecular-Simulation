@@ -22,7 +22,7 @@ int main()
     model = HARMONIC;
 
     // Elegimos el algoritmo de integración
-    algorithm = GJF;
+    algorithm = EULER_MARUYAMA;
 
     // Asignamos un nombre al algoritmo
     if (algorithm == EULER_MARUYAMA)

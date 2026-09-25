@@ -2,16 +2,60 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Compilar TFIII",
-            "type": "shell",
-            "command": "/bin/zsh",
+            "label": "Preparar carpetas",
+            "type": "process",
+            "command": "${command:python.interpreterPath}",
             "args": [
                 "-c",
-                "mkdir -p \"${workspaceFolder}/bin\" && clang++ -std=c++17 -Wall -Wextra -Wpedantic -g \"${workspaceFolder}/src/main.cpp\" \"${workspaceFolder}/src/simulation.cpp\" \"${workspaceFolder}/src/models.cpp\" \"${workspaceFolder}/src/integrators.cpp\" -I\"${workspaceFolder}/include\" -o \"${workspaceFolder}/bin/simulation\""
+                "from pathlib import Path; [Path(p).mkdir(parents=True, exist_ok=True) for p in [\"bin\", \"data/raw\", \"results/figures\"]]"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
+            "problemMatcher": []
+        },
+        {
+            "label": "Compilar TFIII",
+            "type": "shell",
+            "command": "clang++",
+            "args": [
+                "-std=c++17",
+                "-Wall",
+                "-Wextra",
+                "-Wpedantic",
+                "-g",
+                "${workspaceFolder}/src/main.cpp",
+                "${workspaceFolder}/src/simulation.cpp",
+                "${workspaceFolder}/src/models.cpp",
+                "${workspaceFolder}/src/integrators.cpp",
+                "-I${workspaceFolder}/include",
+                "-o",
+                "${workspaceFolder}/bin/simulation"
+            ],
+            "windows": {
+                "command": "g++",
+                "args": [
+                    "-std=c++17",
+                    "-Wall",
+                    "-Wextra",
+                    "-Wpedantic",
+                    "-g",
+                    "${workspaceFolder}/src/main.cpp",
+                    "${workspaceFolder}/src/simulation.cpp",
+                    "${workspaceFolder}/src/models.cpp",
+                    "${workspaceFolder}/src/integrators.cpp",
+                    "-I${workspaceFolder}/include",
+                    "-o",
+                    "${workspaceFolder}/bin/simulation.exe"
+                ]
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": [
+                "Preparar carpetas"
+            ],
+            "dependsOrder": "sequence",
             "problemMatcher": [
                 "$gcc"
             ],
@@ -19,6 +63,40 @@
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "label": "Ejecutar simulacion",
+            "type": "process",
+            "command": "${workspaceFolder}/bin/simulation",
+            "windows": {
+                "command": "${workspaceFolder}\\bin\\simulation.exe"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Analizar resultados",
+            "type": "process",
+            "command": "${command:python.interpreterPath}",
+            "args": [
+                "${workspaceFolder}/analysis/harmonic_analysis.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Simular y analizar",
+            "dependsOn": [
+                "Compilar TFIII",
+                "Ejecutar simulacion",
+                "Analizar resultados"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
         }
     ]
 }
