@@ -522,6 +522,36 @@ plt.savefig(
     bbox_inches="tight"
 )
 
+# =======================================================
+# FIGURA 5: TRAYECTORIA DE LA PARTÍCULA
+# =======================================================
+
+plt.figure(figsize=(8, 5))
+
+plt.plot(
+    t,
+    x
+)
+
+plt.xlabel("Tiempo $t$")
+plt.ylabel("Posición $x$")
+
+plt.title(
+    f"Trayectoria de la partícula "
+    f"({algorithm_label}, "
+    f"$\\gamma={gamma:.1f}$, "
+    f"$h={dt:.4f}$)"
+)
+
+plt.grid(True)
+plt.tight_layout()
+
+plt.savefig(
+    figures_folder / f"trayectoria{file_suffix}.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
 
 # =======================================================
 # MOSTRAR RESULTADOS EN TERMINAL
@@ -570,7 +600,7 @@ print(
 print()
 
 print(
-    f"Las 4 gráficas se han guardado en:\n"
+    f"Las 5 gráficas se han guardado en:\n"
     f"{figures_folder}"
 )
 

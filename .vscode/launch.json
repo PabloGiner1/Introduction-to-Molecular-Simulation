@@ -31,6 +31,37 @@
                 "program": "${workspaceFolder}/bin/simulation",
                 "MIMode": "lldb"
             }
+        },
+        {
+            "name": "Ejecutar analisis de rand",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/random_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "Compilar random",
+            "postDebugTask": "Analizar random",
+            "windows": {
+                "program": "${workspaceFolder}/bin/random_test.exe",
+                "MIMode": "gdb",
+                "miDebuggerPath": "C:/msys64/ucrt64/bin/gdb.exe",
+                "externalConsole": false,
+                "avoidWindowsConsoleRedirection": false,
+                "environment": [
+                    {
+                        "name": "PATH",
+                        "value": "C:/msys64/ucrt64/bin;${env:PATH}"
+                    }
+                ]
+            },
+            "osx": {
+                "program": "${workspaceFolder}/bin/random_test",
+                "MIMode": "lldb"
+            }
         }
     ]
 }

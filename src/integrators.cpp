@@ -68,6 +68,7 @@ void eulerMaruyamaStep(int model, double *x, double *v, SimulationParameters sim
 }
 
 // Genera un número aleatorio gaussiano N(0,1) con Box-Muller
+// Comprobar que el generador de rand de c es realmente uniforme para que las gaussianas salgan mejor
 double randGaussian()
 {
     static int saved = 0;

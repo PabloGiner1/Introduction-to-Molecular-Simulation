@@ -11,5 +11,9 @@ data/raw/
 __pycache__/
 *.pyc
 
+# Archivos de configuración / datos JSON
+*.json
+
 # macOS
 .DS_Store
+

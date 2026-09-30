@@ -97,6 +97,78 @@
             ],
             "dependsOrder": "sequence",
             "problemMatcher": []
+        },
+        {
+            "label": "Compilar random",
+            "type": "shell",
+            "command": "clang++",
+            "args": [
+                "-std=c++17",
+                "-Wall",
+                "-Wextra",
+                "-Wpedantic",
+                "-g",
+                "${workspaceFolder}/src/random_test.cpp",
+                "-o",
+                "${workspaceFolder}/bin/random_test"
+            ],
+            "windows": {
+                "command": "g++",
+                "args": [
+                    "-std=c++17",
+                    "-Wall",
+                    "-Wextra",
+                    "-Wpedantic",
+                    "-g",
+                    "${workspaceFolder}/src/random_test.cpp",
+                    "-o",
+                    "${workspaceFolder}/bin/random_test.exe"
+                ]
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": [
+                "Preparar carpetas"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Ejecutar random",
+            "type": "process",
+            "command": "${workspaceFolder}/bin/random_test",
+            "windows": {
+                "command": "${workspaceFolder}\\bin\\random_test.exe"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Analizar random",
+            "type": "process",
+            "command": "${command:python.interpreterPath}",
+            "args": [
+                "${workspaceFolder}/analysis/random_analysis.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Random completo",
+            "dependsOn": [
+                "Compilar random",
+                "Ejecutar random",
+                "Analizar random"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
         }
     ]
 }
