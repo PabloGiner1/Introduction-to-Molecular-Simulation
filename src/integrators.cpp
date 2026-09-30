@@ -20,8 +20,8 @@ void integrationStep(int algorithm, int model, double *x, double *v, SimulationP
 
     if (algorithm == RUNGE_KUTTA)
     {
-        printf("Runge-Kutta not implemented yet\n");
-        exit(1);
+        rungeKuttaStochasticStep(model, x, v, simulation, modelParameters);
+        return;
     }
 
     if (algorithm == GJF)
@@ -68,7 +68,6 @@ void eulerMaruyamaStep(int model, double *x, double *v, SimulationParameters sim
 }
 
 // Genera un número aleatorio gaussiano N(0,1) con Box-Muller
-// Comprobar que el generador de rand de c es realmente uniforme para que las gaussianas salgan mejor
 double randGaussian()
 {
     static int saved = 0;
@@ -102,4 +101,42 @@ double randGaussian()
     saved = 1;
 
     return z0;
+}
+
+void rungeKuttaStochasticStep(int model, double *x, double *v, SimulationParameters simulation, ModelParameters modelParameters)
+{
+    double xOld = *x;
+    double vOld = *v;
+    double Z;
+    double F1, G1, F2, G2;
+    double pOld, pPred;
+    
+    // Generamos el número aleatorio gaussiano puro N(0,1)
+    double zeta = randGaussian();
+    
+    // Calculamos el factor de ruido Z (escalado con las constantes físicas)
+    // Z = sqrt(2 * gamma * m * kBT * dt) * zeta
+    Z = sqrt(2.0 * simulation.gamma * simulation.mass * simulation.kBT * simulation.dt) * zeta;
+    
+    // Para simplificar la fracción, calculamos el momento lineal actual
+    pOld = vOld * simulation.mass;
+
+    // --- 1ª ETAPA ---
+    F1 = (pOld + Z) / simulation.mass; 
+    G1 = force(model, xOld, modelParameters) - (simulation.gamma * (pOld + Z));
+
+    // --- 2ª ETAPA ---
+    // Predecimos la posición y el momento en el futuro (dt)
+    double xPred = xOld + (simulation.dt * F1);
+    pPred = pOld + (simulation.dt * G1);
+    
+    F2 = pPred / simulation.mass;
+    G2 = force(model, xPred, modelParameters) - (simulation.gamma * pPred);
+
+    // --- ACTUALIZACIÓN FINAL ---
+    // Sobrescribimos directamente en los punteros la media de las dos etapas
+    *x = xOld + 0.5 * simulation.dt * (F1 + F2);
+    
+    // Calculamos el nuevo momento y lo dividimos entre la masa para guardar la velocidad
+    *v = (pOld + 0.5 * simulation.dt * (G1 + G2) + Z) / simulation.mass;
 }
