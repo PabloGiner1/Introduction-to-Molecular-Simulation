@@ -20,7 +20,7 @@ void integrationStep(int algorithm, int model, double *x, double *v, SimulationP
 
     if (algorithm == RUNGE_KUTTA)
     {
-        rungeKuttaStochasticStep(model, x, v, simulation, modelParameters);
+        rungeKuttaStep(model, x, v, simulation, modelParameters);
         return;
     }
 
@@ -103,7 +103,7 @@ double randGaussian()
     return z0;
 }
 
-void rungeKuttaStochasticStep(int model, double *x, double *v, SimulationParameters simulation, ModelParameters modelParameters)
+void rungeKuttaStep(int model, double *x, double *v, SimulationParameters simulation, ModelParameters modelParameters)
 {
     double xOld = *x;
     double vOld = *v;
