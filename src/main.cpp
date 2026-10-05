@@ -22,7 +22,7 @@ int main()
     model = HARMONIC;
 
     // Elegimos el algoritmo de integración
-    algorithm = RUNGE_KUTTA;
+    algorithm = EULER_MARUYAMA; // Cambiar a RUNGE_KUTTA o GJF según se desee   
 
     // Asignamos un nombre al algoritmo
     if (algorithm == EULER_MARUYAMA)
