@@ -27,6 +27,24 @@
       }
     },
     {
+      "name": "Estudio convergencia temporal",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/harmonic_sweep.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Compilar TFIII"
+    },
+    {
+      "name": "Estudio de algoritmos",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/harmonic_algorithm_sweep.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Compilar TFIII"
+    },
+    {
       "name": "Ejecutar analisis de rand",
       "type": "cppdbg",
       "request": "launch",

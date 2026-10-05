@@ -40,15 +40,16 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
     // Abrimos el archivo de resultados
     file = fopen(outputFile, "w");
 
-    // Comprobamos que se ha abierto correctamente
     if (file == NULL)
     {
         printf("Error opening output file\n");
         exit(1);
     }
 
-    // Guardamos los parámetros usados en la simulación
-    parametersFile = fopen("data/raw/parameters.txt", "w");
+    // Guardamos los parámetros usados
+    parametersFile = fopen(
+        "data/raw/harmonic/parameters.txt",
+        "w");
 
     if (parametersFile != NULL)
     {
@@ -71,28 +72,34 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
     // Bucle temporal
     for (step = 0; step <= numberOfSteps; step++)
     {
-        // Tiempo actual
         time = step * simulation.dt;
 
-        // Guardamos solo algunas medidas para no crear archivos enormes
         if (step % saveEvery == 0 || step == numberOfSteps)
         {
-            // Energía cinética y potencial
             kineticEnergy = 0.5 * simulation.mass * v * v;
             potentialEnergy = potential(model, x, modelParameters);
 
-            // Guardamos los resultados
-            fprintf(file, "%lf,%lf,%lf,%lf,%lf\n",
-                    time, x, v, kineticEnergy, potentialEnergy);
+            fprintf(
+                file,
+                "%lf,%lf,%lf,%lf,%lf\n",
+                time,
+                x,
+                v,
+                kineticEnergy,
+                potentialEnergy);
         }
 
-        // Avanzamos un paso temporal
         if (step < numberOfSteps)
         {
-            integrationStep(algorithm, model, &x, &v, simulation, modelParameters);
+            integrationStep(
+                algorithm,
+                model,
+                &x,
+                &v,
+                simulation,
+                modelParameters);
         }
     }
 
-    // Cerramos el archivo
     fclose(file);
 }

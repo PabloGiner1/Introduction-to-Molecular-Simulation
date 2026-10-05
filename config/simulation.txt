@@ -1,0 +1,5 @@
+algorithm=EULER_MARUYAMA         #Algoritmo de integración (EULER_MARUYAMA, RUNGE_KUTTA, GJF)
+eta=1.0                          #Coeficiente de amortiguamiento
+h=0.001                          #Paso temporal
+totalTime=100.0                  #Tiempo total de simulación
+seed=12345                       #Semilla del generador aleatorio

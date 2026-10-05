@@ -18,7 +18,9 @@ int main()
     srand(time(NULL));
 
     // Abrimos el archivo de salida
-    file = fopen("data/raw/random_uniform.csv", "w");
+    file = fopen(
+        "data/raw/random/random_uniform.csv",
+        "w");
 
     if (file == NULL)
     {
@@ -26,7 +28,6 @@ int main()
         return 1;
     }
 
-    // Cabecera
     fprintf(file, "u\n");
 
     // Generamos números uniformes entre 0 y 1
@@ -42,7 +43,9 @@ int main()
     printf("Random test completed\n");
     printf("Generated numbers: %d\n", N);
     printf("RAND_MAX = %d\n", RAND_MAX);
-    printf("Results saved in: data/raw/random_uniform.csv\n");
+    printf(
+        "Results saved in: "
+        "data/raw/random/random_uniform.csv\n");
 
     return 0;
 }

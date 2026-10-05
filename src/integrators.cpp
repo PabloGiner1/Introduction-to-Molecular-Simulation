@@ -25,10 +25,9 @@ void integrationStep(int algorithm, int model, double *x, double *v, SimulationP
     }
 
     if (algorithm == GJF)
-    {   
-        
-        printf("G-JF not implemented yet\n");
-        exit(1);
+    {
+        gjfStep(model, x, v, simulation, modelParameters);
+        return;
     }
 
     // Número de algoritmo incorrecto
@@ -111,33 +110,33 @@ void rungeKuttaStep(int model, double *x, double *v, SimulationParameters simula
     double Z;
     double F1, G1, F2, G2;
     double pOld, pPred;
-    
+
     // Generamos el número aleatorio gaussiano puro N(0,1)
     double zeta = randGaussian();
-    
+
     // Calculamos el factor de ruido Z (escalado con las constantes físicas)
     // Z = sqrt(2 * gamma * m * kBT * dt) * zeta
     Z = sqrt(2.0 * simulation.gamma * simulation.mass * simulation.kBT * simulation.dt) * zeta;
-    
+
     // Para simplificar la fracción, calculamos el momento lineal actual
     pOld = vOld * simulation.mass;
 
     // --- 1ª ETAPA ---
-    F1 = (pOld + Z) / simulation.mass; 
+    F1 = (pOld + Z) / simulation.mass;
     G1 = force(model, xOld, modelParameters) - (simulation.gamma * (pOld + Z));
 
     // --- 2ª ETAPA ---
     // Predecimos la posición y el momento en el futuro (dt)
     double xPred = xOld + (simulation.dt * F1);
     pPred = pOld + (simulation.dt * G1);
-    
+
     F2 = pPred / simulation.mass;
     G2 = force(model, xPred, modelParameters) - (simulation.gamma * pPred);
 
     // --- ACTUALIZACIÓN FINAL ---
     // Sobrescribimos directamente en los punteros la media de las dos etapas
     *x = xOld + 0.5 * simulation.dt * (F1 + F2);
-    
+
     // Calculamos el nuevo momento y lo dividimos entre la masa para guardar la velocidad
     *v = (pOld + 0.5 * simulation.dt * (G1 + G2) + Z) / simulation.mass;
 }
@@ -164,17 +163,13 @@ void gjfStep(int model, double *x, double *v, SimulationParameters simulation, M
     fn = force(model, xOld, modelParameters);
 
     // 2. Actualizamos la posición
-    xNew = xOld + b * simulation.dt * vOld
-           + (b * simulation.dt * simulation.dt / (2.0 * simulation.mass)) * fn
-           + (b * simulation.dt / (2.0 * simulation.mass)) * beta;
+    xNew = xOld + b * simulation.dt * vOld + (b * simulation.dt * simulation.dt / (2.0 * simulation.mass)) * fn + (b * simulation.dt / (2.0 * simulation.mass)) * beta;
 
     // 3. Fuerza conservativa en la nueva posición
     fn1 = force(model, xNew, modelParameters);
 
     // 4. Actualizamos la velocidad
-    vNew = a * vOld
-           + (simulation.dt / (2.0 * simulation.mass)) * (a * fn + fn1)
-           + (b / simulation.mass) * beta;
+    vNew = a * vOld + (simulation.dt / (2.0 * simulation.mass)) * (a * fn + fn1) + (b / simulation.mass) * beta;
 
     // Guardamos los nuevos valores
     *x = xNew;

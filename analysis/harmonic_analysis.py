@@ -4,28 +4,30 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-# Ruta principal del proyecto
 project_root = Path(__file__).resolve().parents[1]
 
-# Archivo donde C++ guarda los parámetros
-parameters_file = project_root / "data" / "raw" / "parameters.txt"
+parameters_file = (
+    project_root
+    / "data"
+    / "raw"
+    / "harmonic"
+    / "parameters.txt"
+)
 
-
-# =======================================================
-# LEER PARÁMETROS DE LA SIMULACIÓN
-# =======================================================
 
 parameters = {}
 
 with parameters_file.open() as file:
     for line in file:
 
-        name, value = line.strip().split("=", maxsplit=1)
+        name, value = line.strip().split(
+            "=",
+            maxsplit=1
+        )
 
         parameters[name] = float(value)
 
 
-# Parámetros físicos
 gamma = parameters["gamma"]
 dt = parameters["dt"]
 
@@ -36,7 +38,6 @@ k = parameters["k"]
 algorithm = int(parameters["algorithm"])
 
 
-# Nombre correspondiente a cada algoritmo
 if algorithm == 1:
     algorithm_name = "euler"
     algorithm_label = "Euler-Maruyama"
@@ -53,37 +54,24 @@ else:
     raise ValueError("Algoritmo desconocido")
 
 
-# =======================================================
-# CARGAR RESULTADOS
-# =======================================================
-
-# El nombre coincide con el generado en main.cpp
 data_file = (
     project_root
     / "data"
     / "raw"
+    / "harmonic"
     / f"harmonic_{algorithm_name}.csv"
 )
 
 
-# Columnas:
-# 0: tiempo
-# 1: posición
-# 2: velocidad
-# 3: energía cinética
-# 4: energía potencial
 data = np.loadtxt(
     data_file,
     delimiter=",",
     skiprows=1
 )
 
-
-# Nos aseguramos de que los datos tengan formato de tabla
 data = np.atleast_2d(data)
 
 
-# Comprobamos que haya suficientes datos
 if len(data) < 2:
     raise RuntimeError(
         "La simulacion no ha generado suficientes datos. "
@@ -91,7 +79,6 @@ if len(data) < 2:
     )
 
 
-# Guardamos cada columna
 t = data[:, 0]
 x = data[:, 1]
 v = data[:, 2]
@@ -100,10 +87,11 @@ E_c = data[:, 3]
 E_p = data[:, 4]
 
 
-# Carpeta donde se guardarán las gráficas
 figures_folder = (
     project_root
     / "results"
+    / "harmonic"
+    / "single_run"
     / "figures"
 )
 
@@ -113,7 +101,6 @@ figures_folder.mkdir(
 )
 
 
-# Nombre utilizado al guardar las figuras
 file_suffix = (
     f"_{algorithm_name}"
     f"_gamma{gamma:.1f}"
@@ -121,17 +108,12 @@ file_suffix = (
 )
 
 
-# =======================================================
-# TERMALIZACIÓN
-# =======================================================
-
-# Descartamos el primer 20 % de la simulación
+# Descartamos el primer 20 %
 t_term = 0.2 * t[-1]
 
 mask = t >= t_term
 
 
-# Datos después de la termalización
 x_eq = x[mask]
 v_eq = v[mask]
 
@@ -139,11 +121,6 @@ E_c_eq = E_c[mask]
 E_p_eq = E_p[mask]
 
 
-# =======================================================
-# RESULTADOS NUMÉRICOS
-# =======================================================
-
-# Energías medias
 mean_Ec = np.mean(E_c_eq)
 mean_Ep = np.mean(E_p_eq)
 
@@ -152,45 +129,29 @@ mean_Etot = np.mean(
 )
 
 
-# Posición
 mean_x = np.mean(x_eq)
 std_x = np.std(x_eq)
 
-
-# Velocidad
 mean_v = np.mean(v_eq)
 std_v = np.std(v_eq)
 
 
-# =======================================================
-# VALORES TEÓRICOS
-# =======================================================
-
-# Equipartición
 mean_Ec_theory = 0.5 * kBT
 mean_Ep_theory = 0.5 * kBT
 
 mean_Etot_theory = kBT
 
-
-# Desviación típica teórica de la posición
 std_x_theory = np.sqrt(
     kBT / k
 )
 
-
-# Desviación típica teórica de la velocidad
 std_v_theory = np.sqrt(
     kBT / mass
 )
 
 
-# =======================================================
-# FIGURA 1: ENERGÍAS INSTANTÁNEAS
-# =======================================================
-
+# Energías instantáneas
 plt.figure(figsize=(8, 5))
-
 
 plt.plot(
     t,
@@ -199,7 +160,6 @@ plt.plot(
     alpha=0.6
 )
 
-
 plt.plot(
     t,
     E_p,
@@ -207,17 +167,14 @@ plt.plot(
     alpha=0.6
 )
 
-
 plt.axhline(
     mean_Ec_theory,
     linestyle="--",
     label="Equipartición"
 )
 
-
 plt.xlabel("Tiempo $t$")
 plt.ylabel("Energía")
-
 
 plt.title(
     f"Evolución temporal de las energías instantáneas "
@@ -225,7 +182,6 @@ plt.title(
     f"$\\gamma={gamma:.1f}$, "
     f"$h={dt:.4f}$)"
 )
-
 
 plt.legend(loc="upper right")
 plt.grid(True)
@@ -256,35 +212,28 @@ plt.gca().text(
     )
 )
 
-
 plt.tight_layout()
 
-
 plt.savefig(
-    figures_folder / f"en_inst{file_suffix}.png",
+    figures_folder
+    / f"en_inst{file_suffix}.png",
     dpi=300,
     bbox_inches="tight"
 )
 
 
-# =======================================================
-# FIGURA 2: CONVERGENCIA DE LAS ENERGÍAS
-# =======================================================
-
+# Convergencia de las energías
 plt.figure(figsize=(8, 5))
-
 
 cum_Ec = (
     np.cumsum(E_c)
     / (np.arange(len(E_c)) + 1)
 )
 
-
 cum_Ep = (
     np.cumsum(E_p)
     / (np.arange(len(E_p)) + 1)
 )
-
 
 plt.plot(
     t,
@@ -292,13 +241,11 @@ plt.plot(
     label=r"$\langle E_{cin} \rangle_{acum}$"
 )
 
-
 plt.plot(
     t,
     cum_Ep,
     label=r"$\langle E_{pot} \rangle_{acum}$"
 )
-
 
 plt.axhline(
     mean_Ec_theory,
@@ -306,10 +253,8 @@ plt.axhline(
     label="Valor teórico"
 )
 
-
 plt.xlabel("Tiempo $t$")
 plt.ylabel("Energía media acumulada")
-
 
 plt.title(
     f"Convergencia del promedio temporal de energía "
@@ -318,26 +263,20 @@ plt.title(
     f"$h={dt:.4f}$)"
 )
 
-
 plt.legend(loc="lower right")
 plt.grid(True)
-
 plt.tight_layout()
 
-
 plt.savefig(
-    figures_folder / f"en_conv{file_suffix}.png",
+    figures_folder
+    / f"en_conv{file_suffix}.png",
     dpi=300,
     bbox_inches="tight"
 )
 
 
-# =======================================================
-# FIGURA 3: DISTRIBUCIÓN DE POSICIONES
-# =======================================================
-
+# Distribución de posiciones
 plt.figure(figsize=(8, 5))
-
 
 plt.hist(
     x_eq,
@@ -347,16 +286,12 @@ plt.hist(
     label="Simulación"
 )
 
-
-# Valores para representar la distribución teórica
 x_grid = np.linspace(
     min(x_eq),
     max(x_eq),
     200
 )
 
-
-# Distribución gaussiana teórica
 P_x_theory = (
     1.0
     / (
@@ -369,17 +304,14 @@ P_x_theory = (
     )
 )
 
-
 plt.plot(
     x_grid,
     P_x_theory,
     label="Gaussiana teórica"
 )
 
-
 plt.xlabel("Posición $x$")
 plt.ylabel("Densidad de probabilidad $P(x)$")
-
 
 plt.title(
     f"Distribución de posiciones $P(x)$ "
@@ -387,7 +319,6 @@ plt.title(
     f"$\\gamma={gamma:.1f}$, "
     f"$h={dt:.4f}$)"
 )
-
 
 plt.legend(loc="upper right")
 plt.grid(True)
@@ -417,23 +348,18 @@ plt.gca().text(
     )
 )
 
-
 plt.tight_layout()
 
-
 plt.savefig(
-    figures_folder / f"dist_pos{file_suffix}.png",
+    figures_folder
+    / f"dist_pos{file_suffix}.png",
     dpi=300,
     bbox_inches="tight"
 )
 
 
-# =======================================================
-# FIGURA 4: DISTRIBUCIÓN DE VELOCIDADES
-# =======================================================
-
+# Distribución de velocidades
 plt.figure(figsize=(8, 5))
-
 
 plt.hist(
     v_eq,
@@ -443,15 +369,12 @@ plt.hist(
     label="Simulación"
 )
 
-
 v_grid = np.linspace(
     min(v_eq),
     max(v_eq),
     200
 )
 
-
-# Distribución gaussiana teórica
 P_v_theory = (
     1.0
     / (
@@ -464,17 +387,14 @@ P_v_theory = (
     )
 )
 
-
 plt.plot(
     v_grid,
     P_v_theory,
     label="Gaussiana teórica"
 )
 
-
 plt.xlabel("Velocidad $v$")
 plt.ylabel("Densidad de probabilidad $P(v)$")
-
 
 plt.title(
     f"Distribución de velocidades $P(v)$ "
@@ -482,7 +402,6 @@ plt.title(
     f"$\\gamma={gamma:.1f}$, "
     f"$h={dt:.4f}$)"
 )
-
 
 plt.legend(loc="upper right")
 plt.grid(True)
@@ -512,20 +431,17 @@ plt.gca().text(
     )
 )
 
-
 plt.tight_layout()
 
-
 plt.savefig(
-    figures_folder / f"dist_vel{file_suffix}.png",
+    figures_folder
+    / f"dist_vel{file_suffix}.png",
     dpi=300,
     bbox_inches="tight"
 )
 
-# =======================================================
-# FIGURA 5: TRAYECTORIA DE LA PARTÍCULA
-# =======================================================
 
+# Trayectoria
 plt.figure(figsize=(8, 5))
 
 plt.plot(
@@ -547,15 +463,12 @@ plt.grid(True)
 plt.tight_layout()
 
 plt.savefig(
-    figures_folder / f"trayectoria{file_suffix}.png",
+    figures_folder
+    / f"trayectoria{file_suffix}.png",
     dpi=300,
     bbox_inches="tight"
 )
 
-
-# =======================================================
-# MOSTRAR RESULTADOS EN TERMINAL
-# =======================================================
 
 print()
 print("===================================")
@@ -600,10 +513,9 @@ print(
 print()
 
 print(
-    f"Las 5 gráficas se han guardado en:\n"
-    f"{figures_folder}"
+    "Las 5 gráficas se han guardado en:"
 )
 
+print(figures_folder)
 
-# Mostramos todas las gráficas
 plt.show()

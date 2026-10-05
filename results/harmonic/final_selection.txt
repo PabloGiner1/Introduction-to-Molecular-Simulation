@@ -1,0 +1,12 @@
+Integrador seleccionado: G-JF
+Paso temporal seleccionado: h = 0.001
+
+Valores de eta estudiados:
+0.1
+1.0
+10.0
+
+Criterio de aceptación:
+error máximo < 2 %
+|<x>| < 0.05
+|<v>| < 0.05
