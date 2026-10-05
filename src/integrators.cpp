@@ -26,7 +26,7 @@ void integrationStep(int algorithm, int model, double *x, double *v, SimulationP
 
     if (algorithm == GJF)
     {   
-        
+        gjfStep(model, x, v, simulation, modelParameters);
         printf("G-JF not implemented yet\n");
         exit(1);
     }

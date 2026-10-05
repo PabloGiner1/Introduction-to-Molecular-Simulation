@@ -44,7 +44,7 @@ int main()
     sprintf(outputFile, "data/raw/harmonic_%s.csv", algorithmName);
 
     // Parámetros temporales
-    simulation.dt = 0.0001;
+    simulation.dt = 0.001;
     simulation.totalTime = 10000.0;
 
     // Parámetros físicos
