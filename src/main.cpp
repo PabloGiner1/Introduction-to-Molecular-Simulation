@@ -22,7 +22,7 @@ int main()
     model = HARMONIC;
 
     // Elegimos el algoritmo de integración
-    algorithm = EULER_MARUYAMA; // Cambiar a RUNGE_KUTTA o GJF según se desee   
+    algorithm = RUNGE_KUTTA; // Cambiar a RUNGE_KUTTA o GJF según se desee   
 
     // Asignamos un nombre al algoritmo
     if (algorithm == EULER_MARUYAMA)
@@ -45,11 +45,11 @@ int main()
 
     // Parámetros temporales
     simulation.dt = 0.0001;
-    simulation.totalTime = 100.0;
+    simulation.totalTime = 10000.0;
 
     // Parámetros físicos
     simulation.mass = 1.0;
-    simulation.gamma = 1.0;
+    simulation.gamma = 1.0;      //Coeficiente de amortiguamiento
     simulation.kBT = 1.0;
 
     // Condiciones iniciales

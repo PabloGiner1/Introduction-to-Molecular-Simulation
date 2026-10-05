@@ -3,12 +3,13 @@
     {
       "name": "windows-gcc-x64",
       "includePath": [
-        "${workspaceFolder}/**"
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/include"
       ],
       "defines": [],
-      "compilerPath": "C:/Autodesk/CPTools/msys64/ucrt64/bin/gcc.exe",
-      "cStandard": "${default}",
-      "cppStandard": "${default}",
+      "compilerPath": "gcc",
+      "cStandard": "c17",
+      "cppStandard": "c++17",
       "intelliSenseMode": "windows-gcc-x64"
     }
   ],

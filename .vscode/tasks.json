@@ -6,7 +6,7 @@
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
-                "command": "C:\\Users\\34648\\anaconda3\\python.exe"
+                "command": "python"
             },
             "args": [
                 "-c",
@@ -84,7 +84,7 @@
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
-                "command": "C:\\Users\\34648\\anaconda3\\python.exe"
+                "command": "python"
             },
             "args": [
                 "${workspaceFolder}/analysis/harmonic_analysis.py"
@@ -159,7 +159,7 @@
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
-                "command": "C:\\Users\\34648\\anaconda3\\python.exe"
+                "command": "python"
             },
             "args": [
                 "${workspaceFolder}/analysis/random_analysis.py"
