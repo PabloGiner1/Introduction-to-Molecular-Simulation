@@ -140,3 +140,42 @@ void rungeKuttaStep(int model, double *x, double *v, SimulationParameters simula
     // Calculamos el nuevo momento y lo dividimos entre la masa para guardar la velocidad
     *v = (pOld + 0.5 * simulation.dt * (G1 + G2) + Z) / simulation.mass;
 }
+
+void gjfStep(int model, double *x, double *v, SimulationParameters simulation, ModelParameters modelParameters)
+{
+    double xOld = *x;
+    double vOld = *v;
+    double xNew, vNew;
+    double fn, fn1;
+    double alpha, a, b;
+    double zeta, beta;
+
+    // Calculamos los coeficientes de amortiguamiento
+    alpha = (simulation.gamma * simulation.dt) / (2.0 * simulation.mass);
+    a = (1.0 - alpha) / (1.0 + alpha);
+    b = 1.0 / (1.0 + alpha);
+
+    // Generamos el ruido gaussiano N(0,1) y escalamos con los parámetros físicos
+    zeta = randGaussian();
+    beta = sqrt(2.0 * simulation.gamma * simulation.mass * simulation.kBT * simulation.dt) * zeta;
+
+    // 1. Fuerza conservativa en la posición actual (sin término de rozamiento)
+    fn = force(model, xOld, modelParameters);
+
+    // 2. Actualizamos la posición
+    xNew = xOld + b * simulation.dt * vOld
+           + (b * simulation.dt * simulation.dt / (2.0 * simulation.mass)) * fn
+           + (b * simulation.dt / (2.0 * simulation.mass)) * beta;
+
+    // 3. Fuerza conservativa en la nueva posición
+    fn1 = force(model, xNew, modelParameters);
+
+    // 4. Actualizamos la velocidad
+    vNew = a * vOld
+           + (simulation.dt / (2.0 * simulation.mass)) * (a * fn + fn1)
+           + (b / simulation.mass) * beta;
+
+    // Guardamos los nuevos valores
+    *x = xNew;
+    *v = vNew;
+}
