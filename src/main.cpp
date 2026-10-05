@@ -49,7 +49,7 @@ int main()
 
     // Parámetros físicos
     simulation.mass = 1.0;
-    simulation.gamma = 1.0;      //Coeficiente de amortiguamiento
+    simulation.gamma = 0.1;      //Coeficiente de amortiguamiento
     simulation.kBT = 1.0;
 
     // Condiciones iniciales
