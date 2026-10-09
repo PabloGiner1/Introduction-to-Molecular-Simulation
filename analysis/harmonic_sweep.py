@@ -66,6 +66,11 @@ selection_file = (
     / "harmonic_time_selection.csv"
 )
 
+selection_summary_file = (
+    tables_folder
+    / "harmonic_time_selection_summary.csv"
+)
+
 
 algorithms = {
     "EULER_MARUYAMA": "euler",
@@ -103,19 +108,26 @@ seeds = [
     56789
 ]
 
+
+# Paso temporal fijo
 h = 0.001
 
+
+# Criterios de validez
 theory_tolerance = 0.02
 mean_tolerance = 0.05
 
 
 if os.name == "nt":
+
     simulation_program = (
         project_root
         / "bin"
         / "simulation.exe"
     )
+
 else:
+
     simulation_program = (
         project_root
         / "bin"
@@ -124,6 +136,7 @@ else:
 
 
 if not simulation_program.exists():
+
     raise RuntimeError(
         "No se encuentra el programa compilado. "
         "Compila primero la simulacion desde VS Code."
@@ -184,7 +197,9 @@ def run_simulation(
         text=True
     )
 
+
     if result.returncode != 0:
+
         print(result.stdout)
         print(result.stderr)
 
@@ -205,6 +220,7 @@ def analyse_simulation(algorithm):
         data_folder
         / f"harmonic_{algorithm_name}.csv"
     )
+
 
     data = np.loadtxt(
         data_file,
@@ -233,6 +249,7 @@ def analyse_simulation(algorithm):
     E_p = data[:, 4]
 
 
+    # Descartamos el primer 20 %
     t_term = 0.2 * t[-1]
 
     mask = t >= t_term
@@ -259,6 +276,7 @@ def calculate_average(rows):
 
     result = {}
 
+
     for variable in [
         "Ec",
         "Ep",
@@ -272,6 +290,7 @@ def calculate_average(rows):
             row[variable]
             for row in rows
         ])
+
 
     return result
 
@@ -300,6 +319,7 @@ def calculate_maximum_error(values):
         * 100.0
     )
 
+
     return max(
         error_Ec,
         error_Ep,
@@ -316,12 +336,15 @@ def theory_is_correct(values):
         )
     )
 
+
     means_correct = (
         abs(values["mean_x"])
         < mean_tolerance
-        and abs(values["mean_v"])
+        and
+        abs(values["mean_v"])
         < mean_tolerance
     )
+
 
     return (
         maximum_error
@@ -330,9 +353,19 @@ def theory_is_correct(values):
     )
 
 
+def format_time(value):
+
+    if value is None:
+        return "-"
+
+    return f"{value:g}"
+
+
 all_results = []
 summary = []
+
 selected_times = {}
+first_correct_times = {}
 
 
 print()
@@ -352,25 +385,33 @@ try:
         print(f"eta = {eta}")
         print()
 
-        selected_times[eta] = {}
+
+        selected_times[eta] = None
+
+        first_correct_times[eta] = {
+            "EULER_MARUYAMA": None,
+            "RUNGE_KUTTA": None,
+            "GJF": None
+        }
 
 
-        for algorithm in algorithms:
+        for total_time in simulation_times:
 
             print(
-                algorithm_labels[algorithm]
+                f"T = {total_time:g}"
             )
 
-            selected_time = None
+
+            correct_at_this_time = {}
 
 
-            for total_time in simulation_times:
+            for algorithm in algorithms:
 
                 current_rows = []
 
 
                 print(
-                    f"  T = {total_time:g}",
+                    f"  {algorithm_labels[algorithm]:17s}",
                     end="",
                     flush=True
                 )
@@ -384,6 +425,7 @@ try:
                         total_time,
                         seed
                     )
+
 
                     values = (
                         analyse_simulation(
@@ -405,13 +447,19 @@ try:
                         **values
                     }
 
+
                     all_results.append(row)
                     current_rows.append(row)
 
 
                 if len(current_rows) == 0:
 
+                    correct_at_this_time[
+                        algorithm
+                    ] = False
+
                     print("  ERROR")
+
                     continue
 
 
@@ -421,17 +469,24 @@ try:
                     )
                 )
 
+
                 maximum_error = (
                     calculate_maximum_error(
                         average
                     )
                 )
 
+
                 correct = (
                     theory_is_correct(
                         average
                     )
                 )
+
+
+                correct_at_this_time[
+                    algorithm
+                ] = correct
 
 
                 summary.append({
@@ -444,6 +499,18 @@ try:
                 })
 
 
+                if (
+                    correct
+                    and first_correct_times[
+                        eta
+                    ][algorithm] is None
+                ):
+
+                    first_correct_times[
+                        eta
+                    ][algorithm] = total_time
+
+
                 if correct:
                     state = "OK"
                 else:
@@ -451,7 +518,7 @@ try:
 
 
                 print(
-                    f"   error máximo = "
+                    f"  error máximo = "
                     f"{maximum_error:6.2f} %   "
                     f"<x> = {average['mean_x']:7.4f}   "
                     f"<v> = {average['mean_v']:7.4f}   "
@@ -459,33 +526,35 @@ try:
                 )
 
 
-                if correct:
-
-                    selected_time = (
-                        total_time
-                    )
-
-                    break
-
-
-            selected_times[eta][algorithm] = (
-                selected_time
+            # Primer tiempo en el que los tres
+            # integradores cumplen el criterio
+            all_correct = all(
+                correct_at_this_time.get(
+                    algorithm,
+                    False
+                )
+                for algorithm in algorithms
             )
 
 
-            if selected_time is None:
+            if all_correct:
 
-                print(
-                    "  No se ha alcanzado "
-                    "convergencia"
+                selected_times[eta] = (
+                    total_time
                 )
 
-            else:
+                print()
+                print(
+                    "  Los tres integradores "
+                    "cumplen el criterio."
+                )
 
                 print(
-                    "  Tiempo mínimo convergido: "
-                    f"{selected_time:g}"
+                    "  Tiempo seleccionado: "
+                    f"{total_time:g}"
                 )
+
+                break
 
 
             print()
@@ -498,6 +567,7 @@ finally:
     )
 
 
+# Resultados individuales
 with results_file.open(
     "w",
     newline=""
@@ -526,6 +596,7 @@ with results_file.open(
     writer.writerows(all_results)
 
 
+# Resumen por algoritmo
 with summary_file.open(
     "w",
     newline=""
@@ -554,6 +625,7 @@ with summary_file.open(
     writer.writerows(summary)
 
 
+# Tiempos seleccionados
 selection_rows = []
 
 
@@ -565,46 +637,40 @@ print("===================================")
 
 for eta in eta_values:
 
-    algorithm_times = (
+    selected_time = (
         selected_times[eta]
     )
 
-    valid_times = [
-        time
-        for time
-        in algorithm_times.values()
-        if time is not None
-    ]
 
-    converged = (
-        len(valid_times)
-        == len(algorithms)
-    )
+    if selected_time is None:
 
-
-    if converged:
-
-        selected_time = max(
-            valid_times
-        )
-
-    else:
+        converged = 0
 
         selected_time = (
             simulation_times[-1]
         )
 
+    else:
+
+        converged = 1
+
 
     selection_rows.append({
         "eta": eta,
         "selectedTime": selected_time,
-        "converged": int(converged),
+        "converged": converged,
         "eulerTime":
-            algorithm_times["EULER_MARUYAMA"],
+            first_correct_times[
+                eta
+            ]["EULER_MARUYAMA"],
         "rkTime":
-            algorithm_times["RUNGE_KUTTA"],
+            first_correct_times[
+                eta
+            ]["RUNGE_KUTTA"],
         "gjfTime":
-            algorithm_times["GJF"]
+            first_correct_times[
+                eta
+            ]["GJF"]
     })
 
 
@@ -613,32 +679,32 @@ for eta in eta_values:
 
     print(
         "  Euler-Maruyama: "
-        f"{algorithm_times['EULER_MARUYAMA']}"
+        f"{format_time(first_correct_times[eta]['EULER_MARUYAMA'])}"
     )
 
     print(
         "  Runge-Kutta: "
-        f"{algorithm_times['RUNGE_KUTTA']}"
+        f"{format_time(first_correct_times[eta]['RUNGE_KUTTA'])}"
     )
 
     print(
         "  G-JF: "
-        f"{algorithm_times['GJF']}"
+        f"{format_time(first_correct_times[eta]['GJF'])}"
     )
 
 
-    if converged:
+    if converged == 1:
 
         print(
-            "  Tiempo seleccionado: "
+            "  Tiempo común seleccionado: "
             f"{selected_time:g}"
         )
 
     else:
 
         print(
-            "  No han convergido todos "
-            "los algoritmos"
+            "  No se ha encontrado un "
+            "tiempo común convergido"
         )
 
 
@@ -665,9 +731,137 @@ with selection_file.open(
     writer.writerows(selection_rows)
 
 
+# Tabla resumen de selección temporal
+time_table_rows = []
+
+
+for row in selection_rows:
+
+    eta = row["eta"]
+    selected_time = row["selectedTime"]
+
+
+    errors = [
+        item["maximum_error"]
+        for item in summary
+        if (
+            item["eta"] == eta
+            and item["totalTime"]
+            == selected_time
+        )
+    ]
+
+
+    if len(errors) > 0:
+
+        worst_error = max(
+            errors
+        )
+
+    else:
+
+        worst_error = np.nan
+
+
+    time_table_rows.append({
+        "eta": eta,
+        "selectedTime": selected_time,
+        "maximum_error": worst_error,
+        "eulerTime": row["eulerTime"],
+        "rkTime": row["rkTime"],
+        "gjfTime": row["gjfTime"]
+    })
+
+
+with selection_summary_file.open(
+    "w",
+    newline=""
+) as file:
+
+    names = [
+        "eta",
+        "selectedTime",
+        "maximum_error",
+        "eulerTime",
+        "rkTime",
+        "gjfTime"
+    ]
+
+    writer = csv.DictWriter(
+        file,
+        fieldnames=names
+    )
+
+    writer.writeheader()
+    writer.writerows(time_table_rows)
+
+
+# Imagen de la tabla temporal
+table_data = []
+
+
+for row in time_table_rows:
+
+    table_data.append([
+        f"{row['eta']:g}",
+        f"{row['selectedTime']:g}",
+        f"{row['maximum_error']:.2f} %",
+        format_time(row["eulerTime"]),
+        format_time(row["rkTime"]),
+        format_time(row["gjfTime"])
+    ])
+
+
+fig, ax = plt.subplots(
+    figsize=(9, 2.5)
+)
+
+ax.axis("off")
+
+
+table = ax.table(
+    cellText=table_data,
+    colLabels=[
+        r"$\eta$",
+        "T elegido",
+        "Peor error",
+        "Euler",
+        "RK",
+        "G-JF"
+    ],
+    cellLoc="center",
+    loc="center"
+)
+
+table.auto_set_font_size(False)
+table.set_fontsize(11)
+table.scale(1, 1.5)
+
+
+plt.title(
+    "Resumen de la selección temporal",
+    pad=15
+)
+
+plt.tight_layout()
+
+
+plt.savefig(
+    figures_folder
+    / "harmonic_time_selection_table.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.close()
+
+
+# Gráficas detalladas para cada eta
 for eta in eta_values:
 
-    plt.figure(figsize=(8, 5))
+    plt.figure(
+        figsize=(8, 5)
+    )
 
 
     for algorithm in algorithms:
@@ -676,15 +870,18 @@ for eta in eta_values:
             row
             for row in summary
             if (
-                row["algorithm"] == algorithm
+                row["algorithm"]
+                == algorithm
                 and row["eta"] == eta
             )
         ]
+
 
         selected.sort(
             key=lambda row:
             row["totalTime"]
         )
+
 
         times = [
             row["totalTime"]
@@ -701,17 +898,21 @@ for eta in eta_values:
             times,
             errors,
             marker="o",
-            label=algorithm_labels[algorithm]
+            label=algorithm_labels[
+                algorithm
+            ]
         )
 
 
     plt.axhline(
         100.0 * theory_tolerance,
         linestyle="--",
-        label="Tolerancia"
+        label="Tolerancia del 2 %"
     )
 
+
     plt.xscale("log")
+
 
     plt.xlabel(
         "Tiempo total de simulación"
@@ -721,10 +922,12 @@ for eta in eta_values:
         "Error máximo (%)"
     )
 
+
     plt.title(
         "Convergencia con el tiempo "
         f"($\\eta={eta}$, $h={h}$)"
     )
+
 
     plt.legend()
     plt.grid(True)
@@ -745,11 +948,132 @@ for eta in eta_values:
         bbox_inches="tight"
     )
 
+
     plt.close()
 
 
+# Gráfica resumen de selección temporal
+plt.figure(
+    figsize=(8, 5)
+)
+
+
+for eta in eta_values:
+
+    times = sorted(
+        set(
+            row["totalTime"]
+            for row in summary
+            if row["eta"] == eta
+        )
+    )
+
+
+    worst_errors = []
+
+
+    for total_time in times:
+
+        errors = [
+            row["maximum_error"]
+            for row in summary
+            if (
+                row["eta"] == eta
+                and row["totalTime"]
+                == total_time
+            )
+        ]
+
+
+        worst_errors.append(
+            max(errors)
+        )
+
+
+    line, = plt.plot(
+        times,
+        worst_errors,
+        marker="o",
+        label=f"$\\eta={eta}$"
+    )
+
+
+    selected_time = (
+        selected_times[eta]
+    )
+
+
+    if selected_time is not None:
+
+        selected_errors = [
+            row["maximum_error"]
+            for row in summary
+            if (
+                row["eta"] == eta
+                and row["totalTime"]
+                == selected_time
+            )
+        ]
+
+
+        selected_error = max(
+            selected_errors
+        )
+
+
+        plt.scatter(
+            selected_time,
+            selected_error,
+            s=180,
+            marker="*",
+            color=line.get_color(),
+            zorder=5
+        )
+
+
+plt.axhline(
+    100.0 * theory_tolerance,
+    linestyle="--",
+    label="Tolerancia del 2 %"
+)
+
+
+plt.xscale("log")
+
+
+plt.xlabel(
+    "Tiempo total de simulación"
+)
+
+plt.ylabel(
+    "Peor error entre los integradores (%)"
+)
+
+
+plt.title(
+    "Selección del tiempo de simulación"
+)
+
+
+plt.legend()
+plt.grid(True)
+
+plt.tight_layout()
+
+
+plt.savefig(
+    figures_folder
+    / "harmonic_time_selection.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+
+plt.show()
+
+
 print()
-print("Resultados guardados en:")
+print("Resultados individuales guardados en:")
 print(results_file)
 
 print()
@@ -757,8 +1081,16 @@ print("Resumen guardado en:")
 print(summary_file)
 
 print()
-print("Tiempos seleccionados guardados en:")
+print(
+    "Tiempos seleccionados guardados en:"
+)
 print(selection_file)
+
+print()
+print(
+    "Tabla resumen guardada en:"
+)
+print(selection_summary_file)
 
 print()
 print("Gráficas guardadas en:")

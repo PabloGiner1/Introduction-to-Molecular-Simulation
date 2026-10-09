@@ -70,6 +70,11 @@ summary_file = (
     / "harmonic_algorithm_summary.csv"
 )
 
+global_table_file = (
+    tables_folder
+    / "harmonic_algorithm_global_table.csv"
+)
+
 
 algorithms = {
     "EULER_MARUYAMA": "euler",
@@ -124,6 +129,7 @@ with time_selection_file.open() as file:
 
     reader = csv.DictReader(file)
 
+
     for row in reader:
 
         eta = float(
@@ -134,6 +140,7 @@ with time_selection_file.open() as file:
             row["converged"]
         )
 
+
         if converged != 1:
 
             raise RuntimeError(
@@ -141,6 +148,7 @@ with time_selection_file.open() as file:
                 f"convergido para eta={eta}. "
                 f"Revisa primero el estudio temporal."
             )
+
 
         selected_times[eta] = float(
             row["selectedTime"]
@@ -222,12 +230,14 @@ def run_simulation(
         seed
     )
 
+
     result = subprocess.run(
         [str(simulation_program)],
         cwd=project_root,
         capture_output=True,
         text=True
     )
+
 
     return (
         result.returncode == 0
@@ -280,6 +290,7 @@ def analyse_simulation(algorithm):
     E_p = data[:, 4]
 
 
+    # Descartamos el primer 20 %
     t_term = 0.2 * t[-1]
 
     mask = t >= t_term
@@ -314,12 +325,14 @@ print()
 
 print("Tiempos utilizados:")
 
+
 for eta in eta_values:
 
     print(
         f"  eta = {eta}: "
         f"T = {selected_times[eta]:g}"
     )
+
 
 print()
 
@@ -328,9 +341,13 @@ try:
 
     for eta in eta_values:
 
-        total_time = (
-            selected_times[eta]
-        )
+        #Quitar el comentario para que seleccione el tiempo mas optimo para cada eta (si buscamos eficiencia de codigo)
+        #total_time = (
+        #    selected_times[eta]
+        #)
+        total_time = max(selected_times.values()
+)
+
 
         print()
         print(
@@ -343,7 +360,9 @@ try:
         for algorithm in algorithms:
 
             print(
-                algorithm_labels[algorithm]
+                algorithm_labels[
+                    algorithm
+                ]
             )
 
 
@@ -417,7 +436,9 @@ try:
                         }
 
 
-                    all_results.append(row)
+                    all_results.append(
+                        row
+                    )
 
 
                 print(
@@ -436,6 +457,7 @@ finally:
     )
 
 
+# Resultados individuales
 with results_file.open(
     "w",
     newline=""
@@ -465,6 +487,7 @@ with results_file.open(
     writer.writerows(all_results)
 
 
+# Resumen estadístico
 summary = []
 
 
@@ -487,7 +510,9 @@ for eta in eta_values:
             ]
 
 
-            valid_runs = len(selected)
+            valid_runs = len(
+                selected
+            )
 
 
             if valid_runs == 0:
@@ -640,6 +665,7 @@ with summary_file.open(
     writer.writerows(summary)
 
 
+# Resultados en terminal
 print()
 print("===================================")
 print("RESULTADOS")
@@ -649,12 +675,16 @@ print()
 
 for eta in eta_values:
 
-    print(f"eta = {eta}")
+    print(
+        f"eta = {eta}"
+    )
 
 
     for h in h_values:
 
-        print(f"  h = {h:g}")
+        print(
+            f"  h = {h:g}"
+        )
 
 
         for algorithm in algorithms:
@@ -671,7 +701,10 @@ for eta in eta_values:
             ][0]
 
 
-            if selected["valid_runs"] == 0:
+            if (
+                selected["valid_runs"]
+                == 0
+            ):
 
                 print(
                     f"    "
@@ -683,8 +716,11 @@ for eta in eta_values:
 
 
             if selected["correct"] == 1:
+
                 state = "OK"
+
             else:
+
                 state = "NO"
 
 
@@ -700,6 +736,7 @@ for eta in eta_values:
     print()
 
 
+# Paso máximo fiable
 reliable_h = {}
 
 
@@ -727,25 +764,34 @@ for algorithm in algorithms:
             ][0]
 
 
-            if selected["correct"] != 1:
+            if (
+                selected["correct"]
+                != 1
+            ):
 
                 all_eta_correct = False
 
 
         if all_eta_correct:
 
-            valid_h.append(h)
+            valid_h.append(
+                h
+            )
 
 
     if len(valid_h) > 0:
 
-        reliable_h[algorithm] = max(
+        reliable_h[
+            algorithm
+        ] = max(
             valid_h
         )
 
     else:
 
-        reliable_h[algorithm] = None
+        reliable_h[
+            algorithm
+        ] = None
 
 
 print()
@@ -756,7 +802,11 @@ print("===================================")
 
 for algorithm in algorithms:
 
-    h_max = reliable_h[algorithm]
+    h_max = (
+        reliable_h[
+            algorithm
+        ]
+    )
 
 
     if h_max is None:
@@ -774,11 +824,184 @@ for algorithm in algorithms:
         )
 
 
+# Tabla global de errores
+global_table_rows = []
+
+
+for h in h_values:
+
+    row = {
+        "h": h
+    }
+
+
+    all_correct = True
+
+
+    for algorithm in algorithms:
+
+        errors = []
+
+
+        for eta in eta_values:
+
+            selected = [
+                item
+                for item in summary
+                if (
+                    item["algorithm"]
+                    == algorithm
+                    and item["eta"] == eta
+                    and item["h"] == h
+                )
+            ][0]
+
+
+            errors.append(
+                selected[
+                    "maximum_error"
+                ]
+            )
+
+
+            if (
+                selected["correct"]
+                != 1
+            ):
+
+                all_correct = False
+
+
+        if np.all(
+            np.isnan(errors)
+        ):
+
+            global_error = np.nan
+
+        else:
+
+            global_error = (
+                np.nanmax(errors)
+            )
+
+
+        row[
+            algorithm
+        ] = global_error
+
+
+    row["all_correct"] = int(
+        all_correct
+    )
+
+
+    global_table_rows.append(
+        row
+    )
+
+
+with global_table_file.open(
+    "w",
+    newline=""
+) as file:
+
+    names = [
+        "h",
+        "EULER_MARUYAMA",
+        "RUNGE_KUTTA",
+        "GJF",
+        "all_correct"
+    ]
+
+    writer = csv.DictWriter(
+        file,
+        fieldnames=names
+    )
+
+    writer.writeheader()
+    writer.writerows(
+        global_table_rows
+    )
+
+
+# Imagen de la tabla global
+table_data = []
+
+
+for row in global_table_rows:
+
+    if (
+        row["all_correct"]
+        == 1
+    ):
+
+        state = "SI"
+
+    else:
+
+        state = "NO"
+
+
+    table_data.append([
+        f"{row['h']:.0e}",
+        f"{row['EULER_MARUYAMA']:.2f} %",
+        f"{row['RUNGE_KUTTA']:.2f} %",
+        f"{row['GJF']:.2f} %",
+        state
+    ])
+
+
+fig, ax = plt.subplots(
+    figsize=(8.5, 2.8)
+)
+
+ax.axis("off")
+
+
+table = ax.table(
+    cellText=table_data,
+    colLabels=[
+        "h",
+        "Euler-Maruyama",
+        "Runge-Kutta",
+        "G-JF",
+        "Todos < 2 %"
+    ],
+    cellLoc="center",
+    loc="center"
+)
+
+table.auto_set_font_size(False)
+table.set_fontsize(11)
+table.scale(1, 1.5)
+
+
+plt.title(
+    "Resumen global de los integradores",
+    pad=15
+)
+
+plt.tight_layout()
+
+
+plt.savefig(
+    figures_folder
+    / "harmonic_algorithm_global_table.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.close()
+
+
+# Selección final del algoritmo
 candidates = [
     algorithm
     for algorithm in algorithms
-    if reliable_h[algorithm]
-    is not None
+    if (
+        reliable_h[algorithm]
+        is not None
+    )
 ]
 
 
@@ -788,8 +1011,11 @@ best_h = None
 
 if len(candidates) > 0:
 
+    # Primero buscamos el mayor h fiable
     best_h = max([
-        reliable_h[algorithm]
+        reliable_h[
+            algorithm
+        ]
         for algorithm in candidates
     ])
 
@@ -797,50 +1023,99 @@ if len(candidates) > 0:
     candidates = [
         algorithm
         for algorithm in candidates
-        if reliable_h[algorithm]
-        == best_h
+        if (
+            reliable_h[
+                algorithm
+            ]
+            == best_h
+        )
     ]
 
 
-    best_error = None
+    # Si hay empate, elegimos el algoritmo
+    # que se degrada menos para h mayores
+    larger_h_values = [
+        h
+        for h in h_values
+        if h > best_h
+    ]
+
+
+    best_robustness = None
 
 
     for algorithm in candidates:
 
-        errors = []
+        robustness_errors = []
 
 
-        for eta in eta_values:
+        for h in larger_h_values:
 
-            selected = [
-                row
-                for row in summary
-                if (
-                    row["algorithm"]
-                    == algorithm
-                    and row["eta"] == eta
-                    and row["h"] == best_h
+            errors = []
+
+
+            for eta in eta_values:
+
+                selected = [
+                    row
+                    for row in summary
+                    if (
+                        row["algorithm"]
+                        == algorithm
+                        and row["eta"]
+                        == eta
+                        and row["h"]
+                        == h
+                    )
+                ][0]
+
+
+                errors.append(
+                    selected[
+                        "maximum_error"
+                    ]
                 )
-            ][0]
 
 
-            errors.append(
-                selected["maximum_error"]
-            )
+            if not np.all(
+                np.isnan(errors)
+            ):
 
-
-        mean_error = np.mean(
-            errors
-        )
+                robustness_errors.append(
+                    np.nanmax(
+                        errors
+                    )
+                )
 
 
         if (
-            best_error is None
-            or mean_error < best_error
+            len(
+                robustness_errors
+            ) > 0
         ):
 
-            best_error = mean_error
-            best_algorithm = algorithm
+            robustness = np.mean(
+                robustness_errors
+            )
+
+        else:
+
+            robustness = np.inf
+
+
+        if (
+            best_robustness is None
+            or robustness
+            < best_robustness
+        ):
+
+            best_robustness = (
+                robustness
+            )
+
+            best_algorithm = (
+                algorithm
+            )
 
 
 print()
@@ -865,10 +1140,18 @@ else:
         f"h = {best_h:g}"
     )
 
+    print(
+        "Criterio de desempate: "
+        "robustez para pasos temporales mayores."
+    )
 
+
+# Gráficas para cada eta
 for eta in eta_values:
 
-    plt.figure(figsize=(8, 5))
+    plt.figure(
+        figsize=(8, 5)
+    )
 
 
     for algorithm in algorithms:
@@ -891,18 +1174,27 @@ for eta in eta_values:
 
 
             error = (
-                selected["maximum_error"]
+                selected[
+                    "maximum_error"
+                ]
             )
 
 
-            if np.isnan(error):
+            if np.isnan(
+                error
+            ):
 
-                errors.append(np.nan)
+                errors.append(
+                    np.nan
+                )
 
             else:
 
                 errors.append(
-                    max(error, 0.01)
+                    max(
+                        error,
+                        0.01
+                    )
                 )
 
 
@@ -910,18 +1202,23 @@ for eta in eta_values:
             h_values,
             errors,
             marker="o",
-            label=algorithm_labels[algorithm]
+            label=algorithm_labels[
+                algorithm
+            ]
         )
 
 
     plt.axhline(
-        100.0 * theory_tolerance,
+        100.0
+        * theory_tolerance,
         linestyle="--",
         label="Tolerancia"
     )
 
+
     plt.xscale("log")
     plt.yscale("log")
+
 
     plt.xlabel(
         "Paso temporal $h$"
@@ -931,10 +1228,12 @@ for eta in eta_values:
         "Error máximo (%)"
     )
 
+
     plt.title(
         "Comparación de algoritmos "
         f"($\\eta={eta}$)"
     )
+
 
     plt.legend()
     plt.grid(True)
@@ -955,10 +1254,14 @@ for eta in eta_values:
         bbox_inches="tight"
     )
 
+
     plt.close()
 
 
-plt.figure(figsize=(8, 5))
+# Gráfica global
+plt.figure(
+    figsize=(8, 5)
+)
 
 
 for algorithm in algorithms:
@@ -986,7 +1289,9 @@ for algorithm in algorithms:
 
 
             errors.append(
-                selected["maximum_error"]
+                selected[
+                    "maximum_error"
+                ]
             )
 
 
@@ -1005,7 +1310,10 @@ for algorithm in algorithms:
             )
 
             global_errors.append(
-                max(error, 0.01)
+                max(
+                    error,
+                    0.01
+                )
             )
 
 
@@ -1013,18 +1321,23 @@ for algorithm in algorithms:
         h_values,
         global_errors,
         marker="o",
-        label=algorithm_labels[algorithm]
+        label=algorithm_labels[
+            algorithm
+        ]
     )
 
 
 plt.axhline(
-    100.0 * theory_tolerance,
+    100.0
+    * theory_tolerance,
     linestyle="--",
     label="Tolerancia"
 )
 
+
 plt.xscale("log")
 plt.yscale("log")
+
 
 plt.xlabel(
     "Paso temporal $h$"
@@ -1035,15 +1348,18 @@ plt.ylabel(
     "los valores de $\\eta$ (%)"
 )
 
+
 plt.title(
     "Comparación global "
     "de los algoritmos"
 )
 
+
 plt.legend()
 plt.grid(True)
 
 plt.tight_layout()
+
 
 plt.savefig(
     figures_folder
@@ -1051,6 +1367,7 @@ plt.savefig(
     dpi=300,
     bbox_inches="tight"
 )
+
 
 plt.show()
 
@@ -1062,9 +1379,19 @@ print(
 print(results_file)
 
 print()
-print("Resumen guardado en:")
+print(
+    "Resumen guardado en:"
+)
 print(summary_file)
 
 print()
-print("Gráficas guardadas en:")
+print(
+    "Tabla global guardada en:"
+)
+print(global_table_file)
+
+print()
+print(
+    "Gráficas guardadas en:"
+)
 print(figures_folder)
