@@ -143,6 +143,25 @@
             "problemMatcher": []
         },
         {
+            "label": "Estudio pozo doble: A y eta",
+            "type": "process",
+            "command": "${command:python.interpreterPath}",
+            "windows": {
+                "command": "python"
+            },
+            "args": [
+                "${workspaceFolder}/analysis/double_well_parameter_sweep.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": [
+                "Compilar TFIII"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
             "label": "Compilar random",
             "type": "shell",
             "command": "clang++",
