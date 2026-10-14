@@ -121,7 +121,7 @@ file_suffix = (
 )
 
 title_parameters = (
-    f"$A={A:.1f}$, $dt={dt:.4f}$"
+    f"$A={A:.1f}$, $\\eta={gamma:.1f}$"
     if model_name == "double_well"
     else f"$\\eta={gamma:.1f}$, $dt={dt:.4f}$"
 )
@@ -160,9 +160,30 @@ mean_Ep_theory = 0.5 * kBT
 
 mean_Etot_theory = kBT
 
-std_x_theory = np.sqrt(
-    kBT / k
-)
+if model_name == "double_well":
+    if A <= 0.0 or kBT <= 0.0:
+        raise ValueError("A y kBT deben ser positivos para double_well")
+
+    x_limit = np.sqrt(1.0 + np.sqrt(40.0 * kBT / A))
+    x_theory_grid = np.linspace(-x_limit, x_limit, 20001)
+    boltzmann_weights = np.exp(
+        -A * (x_theory_grid ** 2 - 1.0) ** 2 / kBT
+    )
+    position_normalization = np.trapezoid(
+        boltzmann_weights,
+        x_theory_grid
+    )
+    std_x_theory = np.sqrt(
+        np.trapezoid(
+            x_theory_grid ** 2 * boltzmann_weights,
+            x_theory_grid
+        )
+        / position_normalization
+    )
+else:
+    std_x_theory = np.sqrt(
+        kBT / k
+    )
 
 std_v_theory = np.sqrt(
     kBT / mass
@@ -307,22 +328,32 @@ x_grid = np.linspace(
     200
 )
 
-P_x_theory = (
-    1.0
-    / (
-        np.sqrt(2.0 * np.pi)
-        * std_x_theory
+if model_name == "double_well":
+    P_x_theory = (
+        np.exp(
+            -A * (x_grid ** 2 - 1.0) ** 2 / kBT
+        )
+        / position_normalization
     )
-    * np.exp(
-        -(x_grid ** 2)
-        / (2.0 * std_x_theory ** 2)
+    position_theory_label = "Boltzmann teórica"
+else:
+    P_x_theory = (
+        1.0
+        / (
+            np.sqrt(2.0 * np.pi)
+            * std_x_theory
+        )
+        * np.exp(
+            -(x_grid ** 2)
+            / (2.0 * std_x_theory ** 2)
+        )
     )
-)
+    position_theory_label = "Gaussiana teórica"
 
 plt.plot(
     x_grid,
     P_x_theory,
-    label="Gaussiana teórica"
+    label=position_theory_label
 )
 
 plt.xlabel("Posición $x$")
