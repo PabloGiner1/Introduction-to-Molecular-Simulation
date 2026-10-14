@@ -25,16 +25,17 @@ int main()
     FILE *configFile;
 
     // Elegimos el modelo físico
-    model = HARMONIC;
+    model = DOUBLE_WELL;           //HARMONIC, DOUBLE_WELL, POLYMER
 
     // Parámetros que se mantienen fijos
     simulation.mass = 1.0;
-    simulation.kBT = 1.0;
+    simulation.kBT = 0.2;
 
     simulation.initialPosition = 1.0;
     simulation.initialVelocity = 0.0;
 
     modelParameters.k = 1.0;
+    modelParameters.A = 1.0; // Para el pozo doble
 
     // Valores por defecto
     algorithm = EULER_MARUYAMA;
@@ -95,6 +96,11 @@ int main()
             else if (strcmp(name, "eta") == 0)
             {
                 simulation.gamma = atof(value);
+            }
+
+            else if (strcmp(name, "A") == 0)
+            {
+                modelParameters.A = atof(value);
             }
 
             else if (strcmp(name, "h") == 0)

@@ -62,6 +62,9 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
         fprintf(parametersFile, "kBT=%lf\n", simulation.kBT);
         fprintf(parametersFile, "k=%lf\n", modelParameters.k);
         fprintf(parametersFile, "algorithm=%d\n", algorithm);
+        fprintf(parametersFile, "A=%lf\n", modelParameters.A);
+        fprintf(parametersFile, "model=%d\n", model);
+
 
         fclose(parametersFile);
     }

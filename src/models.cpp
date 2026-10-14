@@ -14,7 +14,7 @@ double force(int model, double x, ModelParameters parameters)
     // Hay que completar estos dos aun :)
     if (model == DOUBLE_WELL)
     {
-        printf("Error: model not implemented\n");
+        return -4.0 * parameters.A * x * (x * x - 1);
     }
 
     if (model == POLYMER)
@@ -36,7 +36,7 @@ double potential(int model, double x, ModelParameters parameters)
     // Hay que completar estos dos aun :)
     if (model == DOUBLE_WELL)
     {
-        printf("Error: model not implemented\n");
+        return parameters.A * (x * x - 1) * (x * x - 1);
     }
 
     if (model == POLYMER)

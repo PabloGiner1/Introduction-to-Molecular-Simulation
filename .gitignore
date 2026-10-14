@@ -12,7 +12,8 @@ __pycache__/
 *.pyc
 
 # JSON
-#*.json
+.json
+
 
 # macOS
 .DS_Store

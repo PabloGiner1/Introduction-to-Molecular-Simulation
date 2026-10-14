@@ -34,6 +34,19 @@ dt = parameters["dt"]
 mass = parameters["mass"]
 kBT = parameters["kBT"]
 k = parameters["k"]
+A = parameters["A"]
+model = int(parameters["model"])
+
+model_names = {
+    1: "harmonic",
+    2: "double_well",
+    3: "polymer",
+}
+
+if model not in model_names:
+    raise ValueError(f"Modelo desconocido: {model}")
+
+model_name = model_names[model]
 
 algorithm = int(parameters["algorithm"])
 
@@ -90,7 +103,7 @@ E_p = data[:, 4]
 figures_folder = (
     project_root
     / "results"
-    / "harmonic"
+    / model_name
     / "single_run"
     / "figures"
 )
@@ -105,6 +118,12 @@ file_suffix = (
     f"_{algorithm_name}"
     f"_gamma{gamma:.1f}"
     f"_h{dt:.4f}"
+)
+
+title_parameters = (
+    f"$A={A:.1f}$, $dt={dt:.4f}$"
+    if model_name == "double_well"
+    else f"$\\eta={gamma:.1f}$, $dt={dt:.4f}$"
 )
 
 
@@ -178,9 +197,7 @@ plt.ylabel("Energía")
 
 plt.title(
     f"Evolución temporal de las energías instantáneas "
-    f"({algorithm_label}, "
-    f"$\\gamma={gamma:.1f}$, "
-    f"$h={dt:.4f}$)"
+    f"({algorithm_label}, {title_parameters})"
 )
 
 plt.legend(loc="upper right")
@@ -258,9 +275,7 @@ plt.ylabel("Energía media acumulada")
 
 plt.title(
     f"Convergencia del promedio temporal de energía "
-    f"({algorithm_label}, "
-    f"$\\gamma={gamma:.1f}$, "
-    f"$h={dt:.4f}$)"
+    f"({algorithm_label}, {title_parameters})"
 )
 
 plt.legend(loc="lower right")
@@ -315,9 +330,7 @@ plt.ylabel("Densidad de probabilidad $P(x)$")
 
 plt.title(
     f"Distribución de posiciones $P(x)$ "
-    f"({algorithm_label}, "
-    f"$\\gamma={gamma:.1f}$, "
-    f"$h={dt:.4f}$)"
+    f"({algorithm_label}, {title_parameters})"
 )
 
 plt.legend(loc="upper right")
@@ -398,9 +411,7 @@ plt.ylabel("Densidad de probabilidad $P(v)$")
 
 plt.title(
     f"Distribución de velocidades $P(v)$ "
-    f"({algorithm_label}, "
-    f"$\\gamma={gamma:.1f}$, "
-    f"$h={dt:.4f}$)"
+    f"({algorithm_label}, {title_parameters})"
 )
 
 plt.legend(loc="upper right")
@@ -454,9 +465,7 @@ plt.ylabel("Posición $x$")
 
 plt.title(
     f"Trayectoria de la partícula "
-    f"({algorithm_label}, "
-    f"$\\gamma={gamma:.1f}$, "
-    f"$h={dt:.4f}$)"
+    f"({algorithm_label}, {title_parameters})"
 )
 
 plt.grid(True)

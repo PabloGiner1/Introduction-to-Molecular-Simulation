@@ -10,6 +10,7 @@
 struct ModelParameters
 {
     double k; // Constante elástica del oscilador
+    double A;
 };
 
 // Calcula la fuerza en la posición x
