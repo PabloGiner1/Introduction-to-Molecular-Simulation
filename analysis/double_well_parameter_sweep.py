@@ -3,11 +3,11 @@ from pathlib import Path
 import csv
 import math
 import os
+import secrets
 import subprocess
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pymbar.timeseries import detect_equilibration
 
 
 project_root = Path(__file__).resolve().parents[1]
@@ -24,7 +24,6 @@ figures_folder.mkdir(parents=True, exist_ok=True)
 a_values = [0.1, 0.5, 1.0, 2.0]
 eta_values = [0.1, 1.0, 5.0]
 replicate_count = 3
-min_required_neff = 50.0  # Umbral mínimo de muestras efectivas no correlacionadas
 
 algorithms = {
     "EULER_MARUYAMA": "euler",
@@ -84,7 +83,17 @@ if algorithm not in algorithms:
 
 dt = float(base_config.get("h", "0.001"))
 total_time = float(base_config.get("totalTime", "1000.0"))
-base_seed = int(base_config.get("seed", "12345"))
+seed_setting = base_config.get("seed", "12345")
+max_base_seed = (2 ** 32 - 1) - (replicate_count - 1) * 11111
+if seed_setting.lower() == "random":
+    base_seed = secrets.randbelow(max_base_seed + 1)
+else:
+    base_seed = int(seed_setting)
+    if not 0 <= base_seed <= max_base_seed:
+        raise ValueError(
+            f"La semilla base debe estar entre 0 y {max_base_seed} "
+            "para dejar espacio a las semillas de las réplicas."
+        )
 if dt <= 0.0 or total_time <= 0.0:
     raise ValueError("h y totalTime deben ser positivos")
 
@@ -140,27 +149,7 @@ try:
                         f"Hay valores no finitos para A={A:g}, eta={eta:g}."
                     )
 
-                kinetic_start, kinetic_g, kinetic_neff = detect_equilibration(
-                    data[:, 3]
-                )
-                potential_start, potential_g, potential_neff = detect_equilibration(
-                    data[:, 4]
-                )
-                equilibration_start = max(kinetic_start, potential_start)
-                if equilibration_start >= len(data) - 1:
-                    raise RuntimeError(
-                        f"No quedan suficientes muestras en equilibrio para "
-                        f"A={A:g}, eta={eta:g}."
-                    )
-
-                # Control de muestras efectivas mínimas
-                if kinetic_neff < min_required_neff or potential_neff < min_required_neff:
-                    print(
-                        f"  [AVISO] Muestras efectivas bajas para A={A:g}, eta={eta:g}, seed={seed}: "
-                        f"N_eff(cin)={kinetic_neff:.1f}, N_eff(pot)={potential_neff:.1f}"
-                    )
-
-                equilibrium_data = data[equilibration_start:]
+                equilibrium_data = data
                 mean_kinetic = float(np.mean(equilibrium_data[:, 3]))
                 mean_potential = float(np.mean(equilibrium_data[:, 4]))
                 kinetic_theory = 0.5 * kBT
@@ -173,15 +162,8 @@ try:
                     "dt": actual_dt,
                     "totalTime": actual_total_time,
                     "kBT": kBT,
-                    "kinetic_equilibration_start_index": kinetic_start,
-                    "potential_equilibration_start_index": potential_start,
-                    "equilibration_start_index": equilibration_start,
-                    "equilibration_start_time": float(data[equilibration_start, 0]),
-                    "kinetic_statistical_inefficiency": kinetic_g,
-                    "potential_statistical_inefficiency": potential_g,
-                    "kinetic_effective_samples": kinetic_neff,
-                    "potential_effective_samples": potential_neff,
-                    "equilibrium_samples": len(equilibrium_data),
+                    "first_saved_time": float(data[0, 0]),
+                    "samples_used": len(equilibrium_data),
                     "mean_kinetic": mean_kinetic,
                     "kinetic_theory": kinetic_theory,
                     "kinetic_deviation_percent": relative_deviation(
@@ -268,6 +250,7 @@ for eta in eta_values:
         label=fr"Simulación, $\eta={eta:g}$",
     )
 
+
 theory_rows = [row for row in summary if row["eta"] == eta_values[0]]
 axes[0].axhline(
     theory_rows[0]["kinetic_theory"],
@@ -309,12 +292,27 @@ for eta in eta_values:
         marker="o",
         label=fr"$\eta={eta:g}$",
     )
+    plt.axhline(
+        y=2,
+        color='red',
+        linestyle='--',
+        linewidth=2,
+        label=r'Tolerancia del 2%',
+    )
     axes[1].plot(
         [row["A"] for row in rows],
         [row["potential_deviation_from_canonical_percent"] for row in rows],
         marker="o",
         label=fr"$\eta={eta:g}$",
     )
+    plt.axhline(
+    y=2,
+    color='red',
+    linestyle='--',
+    linewidth=2,
+    label=r'Tolerancia del 2%',
+)
+
 # CORREGIDO: Se cerró el símbolo $ al final de la cadena
 axes[0].set_title(r"Desviación de $\langle E_{cin}\rangle$ respecto a $k_BT/2$")
 axes[1].set_title(

@@ -2,6 +2,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+
+#define ventana 2000
 
 void runSimulation(int model, int algorithm, SimulationParameters simulation, ModelParameters modelParameters,
                    char outputFile[])
@@ -13,10 +16,18 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
     double kineticEnergy;
     double potentialEnergy;
 
+    double promedio_v = 0.0;
+    double promedio_v2 = 0.0;
+    double desv_v;
+    double desv_v_teorica;
+    double varianza;
+    double tolerancia;
+
     int numberOfSteps;
     int maxSavedPoints;
     int saveEvery;
     int step;
+    int TermalizacionAlcanzada = 0;
 
     FILE *file;
     FILE *parametersFile;
@@ -72,12 +83,75 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
     // Cabecera del CSV
     fprintf(file, "time,x,v,kinetic,potential\n");
 
+
+    // Valores teoricos para termalizacion
+    tolerancia = 0.05;
+    desv_v_teorica = sqrt(simulation.kBT / simulation.mass);
+    double v_ventana[ventana];
+    int indice_ventana = 0;
+    int ventanas_consecutivas = 0;
+    int ventanas_permitidas = 0;
+    int ventanas_necesarias =3;
+
+
+
     // Bucle temporal
     for (step = 0; step <= numberOfSteps; step++)
     {
         time = step * simulation.dt;
 
-        if (step % saveEvery == 0 || step == numberOfSteps)
+        if (step < numberOfSteps)
+        {
+            integrationStep(
+                algorithm,
+                model,
+                &x,
+                &v,
+                simulation,
+                modelParameters);
+        }
+
+        //Hacemos una ventana movil, cuando llega a 500 sustituye el valor inicial por el siguiente y así sucesivamente
+        v_ventana[indice_ventana] = v;
+        indice_ventana = (indice_ventana + 1) % ventana;
+        if(indice_ventana == 0)
+        {
+            //Calculamos la media y la varianza de la velocidad para determinar si se ha alcanzado la termalización
+            promedio_v = 0.0;
+            promedio_v2 = 0.0;
+            for(int i = 0; i < ventana; i++)
+            {
+                promedio_v += v_ventana[i];
+                promedio_v2 += v_ventana[i] * v_ventana[i];
+            }
+            varianza = promedio_v2 / ventana - (promedio_v / ventana) * (promedio_v / ventana);
+            desv_v = sqrt(varianza);
+        }
+
+
+
+
+        if(step > ventana && TermalizacionAlcanzada == 0 && indice_ventana == 0)
+        {
+            if(fabs((desv_v - desv_v_teorica)/desv_v_teorica) < tolerancia){
+            ventanas_consecutivas++;
+            }else {
+                ventanas_permitidas++;
+                if(ventanas_permitidas > 1)
+                {
+                ventanas_consecutivas = 0;
+                ventanas_permitidas = 0;
+                }
+            }
+            if(ventanas_consecutivas >= ventanas_necesarias)
+            {
+                printf("Termalizacion alcanzada en el tiempo %lf\n", time);
+                TermalizacionAlcanzada = 1;
+            }
+            
+        }
+
+                if ((step % saveEvery == 0 || step == numberOfSteps) && TermalizacionAlcanzada == 1)
         {
             kineticEnergy = 0.5 * simulation.mass * v * v;
             potentialEnergy = potential(model, x, modelParameters);
@@ -92,16 +166,6 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
                 potentialEnergy);
         }
 
-        if (step < numberOfSteps)
-        {
-            integrationStep(
-                algorithm,
-                model,
-                &x,
-                &v,
-                simulation,
-                modelParameters);
-        }
     }
 
     fclose(file);

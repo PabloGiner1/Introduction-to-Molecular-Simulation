@@ -241,25 +241,11 @@ def analyse_simulation(algorithm):
         return None
 
 
-    t = data[:, 0]
     x = data[:, 1]
     v = data[:, 2]
 
     E_c = data[:, 3]
     E_p = data[:, 4]
-
-
-    # Descartamos el primer 20 %
-    t_term = 0.2 * t[-1]
-
-    mask = t >= t_term
-
-
-    x = x[mask]
-    v = v[mask]
-
-    E_c = E_c[mask]
-    E_p = E_p[mask]
 
 
     return {

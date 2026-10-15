@@ -3,10 +3,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <random>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+unsigned int generateRandomSeed()
+{
+    std::random_device randomDevice;
+    return randomDevice();
+}
 
 void integrationStep(int algorithm, int model, double *x, double *v, SimulationParameters simulation,
                      ModelParameters modelParameters)
@@ -175,3 +182,4 @@ void gjfStep(int model, double *x, double *v, SimulationParameters simulation, M
     *x = xNew;
     *v = vNew;
 }
+

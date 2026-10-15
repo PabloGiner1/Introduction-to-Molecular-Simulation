@@ -3,7 +3,6 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pymbar.timeseries import detect_equilibration
 
 
 project_root = Path(__file__).resolve().parents[1]
@@ -88,27 +87,14 @@ v = data[:, 2]
 E_c = data[:, 3]
 E_p = data[:, 4]
 
-# --- TERMALIZACIÓN AUTOMÁTICA CON PYMBAR ---
-kinetic_start, kinetic_g, kinetic_neff = detect_equilibration(E_c)
-potential_start, potential_g, potential_neff = detect_equilibration(E_p)
-equilibration_start = max(kinetic_start, potential_start)
+# simulation.cpp guarda en el CSV únicamente las muestras posteriores a la termalización.
+t_term = float(t[0])
 
-if equilibration_start >= len(data) - 1:
-    raise RuntimeError("No quedan suficientes muestras en equilibrio tras la termalización.")
+x_eq = x
+v_eq = v
 
-if kinetic_neff < 50.0 or potential_neff < 50.0:
-    print(
-        f"[AVISO] Muestras efectivas bajas tras termalizar: "
-        f"N_eff(cin)={kinetic_neff:.1f}, N_eff(pot)={potential_neff:.1f}"
-    )
-
-t_term = float(t[equilibration_start])
-
-x_eq = x[equilibration_start:]
-v_eq = v[equilibration_start:]
-
-E_c_eq = E_c[equilibration_start:]
-E_p_eq = E_p[equilibration_start:]
+E_c_eq = E_c
+E_p_eq = E_p
 
 mean_Ec = float(np.mean(E_c_eq))
 mean_Ep = float(np.mean(E_p_eq))
@@ -212,6 +198,7 @@ plt.axvline(
 )
 
 plt.xlabel("Tiempo $t$")
+plt.xlim(left=0.0)
 plt.ylabel("Energía")
 
 plt.title(
@@ -288,6 +275,7 @@ plt.axhline(
 )
 
 plt.xlabel("Tiempo $t$")
+plt.xlim(left=0.0)
 plt.ylabel("Energía media acumulada")
 
 plt.title(
@@ -455,6 +443,7 @@ plt.axvline(
 )
 
 plt.xlabel("Tiempo $t$")
+plt.xlim(left=0.0)
 plt.ylabel("Posición $x$")
 
 plt.title(
@@ -480,8 +469,8 @@ print("===================================")
 print(f"Algoritmo: {algorithm_label}")
 print(f"gamma = {gamma}")
 print(f"h = {dt}")
-print(f"Inicio de equilibrio (t_term) = {t_term:.4f} s (índice {equilibration_start})")
-print(f"Muestras efectivas: N_eff(cin)={kinetic_neff:.1f}, N_eff(pot)={potential_neff:.1f}")
+print(f"Primera muestra tras termalización = {t_term:.4f} s")
+print(f"Muestras analizadas = {len(data)}")
 
 print()
 

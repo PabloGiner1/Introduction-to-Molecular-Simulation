@@ -6,7 +6,7 @@
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
-                "command": "python"
+                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
             },
             "args": [
                 "-c",
@@ -84,7 +84,7 @@
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
-                "command": "python"
+                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
             },
             "args": [
                 "${workspaceFolder}/analysis/harmonic_analysis.py"
@@ -109,7 +109,7 @@
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
-                "command": "python"
+                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
             },
             "args": [
                 "${workspaceFolder}/analysis/harmonic_sweep.py"
@@ -128,7 +128,7 @@
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
-                "command": "python"
+                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
             },
             "args": [
                 "${workspaceFolder}/analysis/harmonic_algorithm_sweep.py"
@@ -145,10 +145,7 @@
         {
             "label": "Estudio pozo doble: A y eta",
             "type": "process",
-            "command": "${command:python.interpreterPath}",
-            "windows": {
-                "command": "python"
-            },
+            "command": "C:\\Users\\hugos\\anaconda3\\python.exe",
             "args": [
                 "${workspaceFolder}/analysis/double_well_parameter_sweep.py"
             ],
@@ -216,7 +213,7 @@
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
-                "command": "python"
+                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
             },
             "args": [
                 "${workspaceFolder}/analysis/random_analysis.py"

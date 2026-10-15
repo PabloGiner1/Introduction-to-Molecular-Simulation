@@ -39,4 +39,7 @@ void gjfStep(int model, double *x, double *v, SimulationParameters simulation,
 // Genera un número aleatorio gaussiano N(0,1)
 double randGaussian();
 
+// Genera una semilla aleatoria para srand
+unsigned int generateRandomSeed();
+
 #endif

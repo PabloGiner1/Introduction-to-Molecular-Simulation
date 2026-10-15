@@ -8,6 +8,7 @@ int main()
 {
     int model;
     int algorithm;
+    bool useRandomSeed;
 
     unsigned int seed;
 
@@ -31,7 +32,7 @@ int main()
     simulation.mass = 1.0;
     simulation.kBT = 0.2;
 
-    simulation.initialPosition = 1.0;
+    simulation.initialPosition = 0.0;
     simulation.initialVelocity = 0.0;
 
     modelParameters.k = 1.0;
@@ -46,6 +47,7 @@ int main()
     simulation.totalTime = 1000.0;
 
     seed = 12345;
+    useRandomSeed = true;               //Para usar una semilla aleatoria
 
     // Abrimos el archivo de configuración
     configFile = fopen("config/simulation.txt", "r");
@@ -115,12 +117,23 @@ int main()
 
             else if (strcmp(name, "seed") == 0)
             {
-                seed = (unsigned int)atoi(value);
+                if (strcmp(value, "random") == 0)
+                {
+                    useRandomSeed = true;
+                }
+                else
+                {
+                    seed = (unsigned int)strtoul(value, NULL, 10);
+                    useRandomSeed = false;
+                }
             }
         }
     }
 
     fclose(configFile);
+
+    // Comentar esta linea para usar la semilla fija de respaldo (12345).
+    seed = useRandomSeed ? generateRandomSeed() : seed;
 
     // Inicializamos el generador de números aleatorios
     srand(seed);

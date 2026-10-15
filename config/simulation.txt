@@ -3,4 +3,4 @@ eta=0.1                         #Coeficiente de amortiguamiento
 A=0.5                             #Altura de potencial
 h=0.01                           #Paso temporal
 totalTime=100000.0               #Tiempo total de simulación
-seed=54321                       #Semilla del generador aleatorio
+seed=random                      #Usar "random" o indicar una semilla entera fija
