@@ -7,6 +7,7 @@ import subprocess
 
 import matplotlib.pyplot as plt
 import numpy as np
+from pymbar.timeseries import detect_equilibration
 
 
 project_root = Path(__file__).resolve().parents[1]
@@ -21,8 +22,9 @@ tables_folder.mkdir(parents=True, exist_ok=True)
 figures_folder.mkdir(parents=True, exist_ok=True)
 
 a_values = [0.1, 0.5, 1.0, 2.0]
-eta_values = [0.1, 1.0, 10.0]
+eta_values = [0.1, 1.0, 5.0]
 replicate_count = 3
+min_required_neff = 50.0  # Umbral mínimo de muestras efectivas no correlacionadas
 
 algorithms = {
     "EULER_MARUYAMA": "euler",
@@ -133,13 +135,34 @@ try:
                 )
                 if len(data) < 2:
                     raise RuntimeError(f"Datos insuficientes para A={A:g}, eta={eta:g}.")
+                if not np.all(np.isfinite(data)):
+                    raise RuntimeError(
+                        f"Hay valores no finitos para A={A:g}, eta={eta:g}."
+                    )
 
-                equilibrium = data[:, 0] >= 0.2 * data[-1, 0]
-                if not np.any(equilibrium):
-                    raise RuntimeError("No hay muestras en la region de equilibrio.")
+                kinetic_start, kinetic_g, kinetic_neff = detect_equilibration(
+                    data[:, 3]
+                )
+                potential_start, potential_g, potential_neff = detect_equilibration(
+                    data[:, 4]
+                )
+                equilibration_start = max(kinetic_start, potential_start)
+                if equilibration_start >= len(data) - 1:
+                    raise RuntimeError(
+                        f"No quedan suficientes muestras en equilibrio para "
+                        f"A={A:g}, eta={eta:g}."
+                    )
 
-                mean_kinetic = float(np.mean(data[equilibrium, 3]))
-                mean_potential = float(np.mean(data[equilibrium, 4]))
+                # Control de muestras efectivas mínimas
+                if kinetic_neff < min_required_neff or potential_neff < min_required_neff:
+                    print(
+                        f"  [AVISO] Muestras efectivas bajas para A={A:g}, eta={eta:g}, seed={seed}: "
+                        f"N_eff(cin)={kinetic_neff:.1f}, N_eff(pot)={potential_neff:.1f}"
+                    )
+
+                equilibrium_data = data[equilibration_start:]
+                mean_kinetic = float(np.mean(equilibrium_data[:, 3]))
+                mean_potential = float(np.mean(equilibrium_data[:, 4]))
                 kinetic_theory = 0.5 * kBT
                 potential_theory = theoretical_potential_mean(actual_A, kBT)
                 simulation_results.append({
@@ -150,14 +173,23 @@ try:
                     "dt": actual_dt,
                     "totalTime": actual_total_time,
                     "kBT": kBT,
+                    "kinetic_equilibration_start_index": kinetic_start,
+                    "potential_equilibration_start_index": potential_start,
+                    "equilibration_start_index": equilibration_start,
+                    "equilibration_start_time": float(data[equilibration_start, 0]),
+                    "kinetic_statistical_inefficiency": kinetic_g,
+                    "potential_statistical_inefficiency": potential_g,
+                    "kinetic_effective_samples": kinetic_neff,
+                    "potential_effective_samples": potential_neff,
+                    "equilibrium_samples": len(equilibrium_data),
                     "mean_kinetic": mean_kinetic,
                     "kinetic_theory": kinetic_theory,
                     "kinetic_deviation_percent": relative_deviation(
                         mean_kinetic, kinetic_theory
                     ),
                     "mean_potential": mean_potential,
-                    "potential_boltzmann_theory": potential_theory,
-                    "potential_deviation_from_boltzmann_percent": relative_deviation(
+                    "potential_canonical_theory": potential_theory,
+                    "potential_deviation_from_canonical_percent": relative_deviation(
                         mean_potential, potential_theory
                     ),
                     "potential_kBT_over_2_reference": kinetic_theory,
@@ -180,22 +212,31 @@ for A in a_values:
         potential_values = [row["mean_potential"] for row in runs]
         kinetic_mean = float(np.mean(kinetic_values))
         potential_mean = float(np.mean(potential_values))
+        std_pot = float(np.std(potential_values, ddof=1)) if len(runs) > 1 else 0.0
         kinetic_theory = runs[0]["kinetic_theory"]
-        potential_theory = runs[0]["potential_boltzmann_theory"]
+        potential_theory = runs[0]["potential_canonical_theory"]
+
+        # Advertencia de posible falta de ergodicidad
+        if potential_mean > 0 and (std_pot / potential_mean) > 0.10:
+            print(
+                f"[AVISO ERGODICIDAD] Alta dispersión entre réplicas para A={A:g}, eta={eta:g}: "
+                f"std_potential={std_pot:.4f} (posible atrapamiento en pozo)."
+            )
+
         summary.append({
             "A": A,
             "eta": eta,
             "replicates": len(runs),
             "mean_kinetic": kinetic_mean,
-            "std_kinetic": float(np.std(kinetic_values, ddof=1)),
+            "std_kinetic": float(np.std(kinetic_values, ddof=1)) if len(runs) > 1 else 0.0,
             "kinetic_theory": kinetic_theory,
             "kinetic_deviation_percent": relative_deviation(
                 kinetic_mean, kinetic_theory
             ),
             "mean_potential": potential_mean,
-            "std_potential": float(np.std(potential_values, ddof=1)),
-            "potential_boltzmann_theory": potential_theory,
-            "potential_deviation_from_boltzmann_percent": relative_deviation(
+            "std_potential": std_pot,
+            "potential_canonical_theory": potential_theory,
+            "potential_deviation_from_canonical_percent": relative_deviation(
                 potential_mean, potential_theory
             ),
             "potential_kBT_over_2_reference": kinetic_theory,
@@ -236,11 +277,11 @@ axes[0].axhline(
 )
 axes[1].plot(
     [row["A"] for row in theory_rows],
-    [row["potential_boltzmann_theory"] for row in theory_rows],
+    [row["potential_canonical_theory"] for row in theory_rows],
     color="black",
     linestyle="--",
     marker="s",
-    label="Teoría de Boltzmann",
+    label="Integral teórica del ensamble canónico",
 )
 axes[1].axhline(
     theory_rows[0]["potential_kBT_over_2_reference"],
@@ -270,12 +311,15 @@ for eta in eta_values:
     )
     axes[1].plot(
         [row["A"] for row in rows],
-        [row["potential_deviation_from_boltzmann_percent"] for row in rows],
+        [row["potential_deviation_from_canonical_percent"] for row in rows],
         marker="o",
         label=fr"$\eta={eta:g}$",
     )
-axes[0].set_title(r"Desviación de $\langle E_{cin}\rangle$ respecto a $k_BT/2")
-axes[1].set_title("Desviación de $<E_{pot}>$ respecto a Boltzmann")
+# CORREGIDO: Se cerró el símbolo $ al final de la cadena
+axes[0].set_title(r"Desviación de $\langle E_{cin}\rangle$ respecto a $k_BT/2$")
+axes[1].set_title(
+    r"Desviación de $\langle E_{pot}\rangle$ respecto a la integral canónica"
+)
 for axis in axes:
     axis.set_xlabel("Parámetro $A$")
     axis.set_ylabel("Desviación relativa (%)")

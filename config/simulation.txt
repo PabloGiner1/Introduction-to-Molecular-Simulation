@@ -1,5 +1,5 @@
 algorithm=GJF         #Algoritmo de integración (EULER_MARUYAMA, RUNGE_KUTTA, GJF)
-eta=10.0 
+eta=5.0
 A=2.0                         #Coeficiente de amortiguamiento
 h=0.01                          #Paso temporal
 totalTime=100000.0                  #Tiempo total de simulación

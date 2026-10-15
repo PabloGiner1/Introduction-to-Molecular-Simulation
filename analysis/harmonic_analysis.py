@@ -1,8 +1,9 @@
 from datetime import datetime
 from pathlib import Path
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+from pymbar.timeseries import detect_equilibration
 
 
 project_root = Path(__file__).resolve().parents[1]
@@ -15,19 +16,14 @@ parameters_file = (
     / "parameters.txt"
 )
 
-
 parameters = {}
 
 with parameters_file.open() as file:
     for line in file:
-
-        name, value = line.strip().split(
-            "=",
-            maxsplit=1
-        )
-
-        parameters[name] = float(value)
-
+        content = line.split("#", maxsplit=1)[0].strip()
+        if "=" in content:
+            name, value = content.split("=", maxsplit=1)
+            parameters[name.strip()] = float(value.strip())
 
 gamma = parameters["gamma"]
 dt = parameters["dt"]
@@ -51,22 +47,17 @@ model_name = model_names[model]
 
 algorithm = int(parameters["algorithm"])
 
-
 if algorithm == 1:
     algorithm_name = "euler"
     algorithm_label = "Euler-Maruyama"
-
 elif algorithm == 2:
     algorithm_name = "rk"
     algorithm_label = "Runge-Kutta"
-
 elif algorithm == 3:
     algorithm_name = "gjf"
     algorithm_label = "G-JF"
-
 else:
     raise ValueError("Algoritmo desconocido")
-
 
 data_file = (
     project_root
@@ -76,7 +67,6 @@ data_file = (
     / f"harmonic_{algorithm_name}.csv"
 )
 
-
 data = np.loadtxt(
     data_file,
     delimiter=",",
@@ -85,13 +75,11 @@ data = np.loadtxt(
 
 data = np.atleast_2d(data)
 
-
 if len(data) < 2:
     raise RuntimeError(
         "La simulacion no ha generado suficientes datos. "
         "Comprueba que el algoritmo seleccionado esta implementado."
     )
-
 
 t = data[:, 0]
 x = data[:, 1]
@@ -100,6 +88,68 @@ v = data[:, 2]
 E_c = data[:, 3]
 E_p = data[:, 4]
 
+# --- TERMALIZACIÓN AUTOMÁTICA CON PYMBAR ---
+kinetic_start, kinetic_g, kinetic_neff = detect_equilibration(E_c)
+potential_start, potential_g, potential_neff = detect_equilibration(E_p)
+equilibration_start = max(kinetic_start, potential_start)
+
+if equilibration_start >= len(data) - 1:
+    raise RuntimeError("No quedan suficientes muestras en equilibrio tras la termalización.")
+
+if kinetic_neff < 50.0 or potential_neff < 50.0:
+    print(
+        f"[AVISO] Muestras efectivas bajas tras termalizar: "
+        f"N_eff(cin)={kinetic_neff:.1f}, N_eff(pot)={potential_neff:.1f}"
+    )
+
+t_term = float(t[equilibration_start])
+
+x_eq = x[equilibration_start:]
+v_eq = v[equilibration_start:]
+
+E_c_eq = E_c[equilibration_start:]
+E_p_eq = E_p[equilibration_start:]
+
+mean_Ec = float(np.mean(E_c_eq))
+mean_Ep = float(np.mean(E_p_eq))
+mean_Etot = float(np.mean(E_c_eq + E_p_eq))
+
+mean_x = float(np.mean(x_eq))
+std_x = float(np.std(x_eq))
+
+mean_v = float(np.mean(v_eq))
+std_v = float(np.std(v_eq))
+
+# --- VALORES TEÓRICOS EN EQUILIBRIO ---
+mean_Ec_theory = 0.5 * kBT
+
+if model_name == "double_well":
+    if A <= 0.0 or kBT <= 0.0:
+        raise ValueError("A y kBT deben ser positivos para double_well")
+
+    x_limit = np.sqrt(1.0 + np.sqrt(40.0 * kBT / A))
+    x_theory_grid = np.linspace(-x_limit, x_limit, 20001)
+    potential_grid = A * (x_theory_grid ** 2 - 1.0) ** 2
+    canonical_weights = np.exp(-potential_grid / kBT)
+    position_normalization = np.trapezoid(canonical_weights, x_theory_grid)
+
+    mean_Ep_theory = float(
+        np.trapezoid(potential_grid * canonical_weights, x_theory_grid) / position_normalization
+    )
+    std_x_theory = float(
+        np.sqrt(
+            np.trapezoid(x_theory_grid ** 2 * canonical_weights, x_theory_grid)
+            / position_normalization
+        )
+    )
+else:
+    mean_Ep_theory = 0.5 * kBT
+    std_x_theory = float(np.sqrt(kBT / k))
+
+mean_Etot_theory = mean_Ec_theory + mean_Ep_theory
+std_v_theory = float(np.sqrt(kBT / mass))
+
+# --- GENERACIÓN DE FIGURAS ---
 run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
 figures_folder = (
@@ -117,7 +167,6 @@ figures_folder.mkdir(
     exist_ok=True
 )
 
-
 file_suffix = (
     f"_{algorithm_name}"
     f"_gamma{gamma:.2f}"
@@ -131,71 +180,7 @@ title_parameters = (
     else f"$\\eta={gamma:.2f}$, $dt={dt:.4f}$"
 )
 
-
-# Descartamos el primer 20 %
-t_term = 0.2 * t[-1]
-
-mask = t >= t_term
-
-
-x_eq = x[mask]
-v_eq = v[mask]
-
-E_c_eq = E_c[mask]
-E_p_eq = E_p[mask]
-
-
-mean_Ec = np.mean(E_c_eq)
-mean_Ep = np.mean(E_p_eq)
-
-mean_Etot = np.mean(
-    E_c_eq + E_p_eq
-)
-
-
-mean_x = np.mean(x_eq)
-std_x = np.std(x_eq)
-
-mean_v = np.mean(v_eq)
-std_v = np.std(v_eq)
-
-
-mean_Ec_theory = 0.5 * kBT
-mean_Ep_theory = 0.5 * kBT
-
-mean_Etot_theory = kBT
-
-if model_name == "double_well":
-    if A <= 0.0 or kBT <= 0.0:
-        raise ValueError("A y kBT deben ser positivos para double_well")
-
-    x_limit = np.sqrt(1.0 + np.sqrt(40.0 * kBT / A))
-    x_theory_grid = np.linspace(-x_limit, x_limit, 20001)
-    boltzmann_weights = np.exp(
-        -A * (x_theory_grid ** 2 - 1.0) ** 2 / kBT
-    )
-    position_normalization = np.trapezoid(
-        boltzmann_weights,
-        x_theory_grid
-    )
-    std_x_theory = np.sqrt(
-        np.trapezoid(
-            x_theory_grid ** 2 * boltzmann_weights,
-            x_theory_grid
-        )
-        / position_normalization
-    )
-else:
-    std_x_theory = np.sqrt(
-        kBT / k
-    )
-
-std_v_theory = np.sqrt(
-    kBT / mass
-)
-
-
-# Energías instantáneas
+# 1. Energías instantáneas
 plt.figure(figsize=(8, 5))
 
 plt.plot(
@@ -214,8 +199,16 @@ plt.plot(
 
 plt.axhline(
     mean_Ec_theory,
+    color="black",
     linestyle="--",
-    label="Equipartición"
+    label=r"Teoría $E_{cin}$ ($k_BT/2$)"
+)
+
+plt.axvline(
+    t_term,
+    color="gray",
+    linestyle=":",
+    label=f"Inicio eq. ($t={t_term:.2f}$)"
 )
 
 plt.xlabel("Tiempo $t$")
@@ -229,9 +222,8 @@ plt.title(
 plt.legend(loc="upper right")
 plt.grid(True)
 
-
 text_fig1 = (
-    f"Promedios ($t \\geq {t_term:.1f}$):\n"
+    f"Promedios ($t \\geq {t_term:.2f}$):\n"
     f"$\\langle E_{{cin}} \\rangle$ = {mean_Ec:.4f}  "
     f"(Teórico: {mean_Ec_theory:.4f})\n"
     f"$\\langle E_{{pot}} \\rangle$ = {mean_Ep:.4f}  "
@@ -239,7 +231,6 @@ text_fig1 = (
     f"$\\langle E_{{tot}} \\rangle$ = {mean_Etot:.4f}  "
     f"(Teórico: {mean_Etot_theory:.4f})"
 )
-
 
 plt.gca().text(
     0.03,
@@ -258,25 +249,16 @@ plt.gca().text(
 plt.tight_layout()
 
 plt.savefig(
-    figures_folder
-    / f"en_inst{file_suffix}.png",
+    figures_folder / f"en_inst{file_suffix}.png",
     dpi=300,
     bbox_inches="tight"
 )
 
-
-# Convergencia de las energías
+# 2. Convergencia de las energías
 plt.figure(figsize=(8, 5))
 
-cum_Ec = (
-    np.cumsum(E_c)
-    / (np.arange(len(E_c)) + 1)
-)
-
-cum_Ep = (
-    np.cumsum(E_p)
-    / (np.arange(len(E_p)) + 1)
-)
+cum_Ec = np.cumsum(E_c) / (np.arange(len(E_c)) + 1)
+cum_Ep = np.cumsum(E_p) / (np.arange(len(E_p)) + 1)
 
 plt.plot(
     t,
@@ -290,10 +272,19 @@ plt.plot(
     label=r"$\langle E_{pot} \rangle_{acum}$"
 )
 
+# Referencias teóricas
 plt.axhline(
     mean_Ec_theory,
+    color="black",
     linestyle="--",
-    label="Valor teórico"
+    label=r"Teórico $E_{cin}$"
+)
+
+plt.axhline(
+    mean_Ep_theory,
+    color="gray",
+    linestyle=":",
+    label=r"Teórico $E_{pot}$"
 )
 
 plt.xlabel("Tiempo $t$")
@@ -309,14 +300,12 @@ plt.grid(True)
 plt.tight_layout()
 
 plt.savefig(
-    figures_folder
-    / f"en_conv{file_suffix}.png",
+    figures_folder / f"en_conv{file_suffix}.png",
     dpi=300,
     bbox_inches="tight"
 )
 
-
-# Distribución de posiciones
+# 3. Distribución de posiciones
 plt.figure(figsize=(8, 5))
 
 plt.hist(
@@ -327,37 +316,26 @@ plt.hist(
     label="Simulación"
 )
 
-x_grid = np.linspace(
-    min(x_eq),
-    max(x_eq),
-    200
-)
+x_grid = np.linspace(min(x_eq), max(x_eq), 200)
 
 if model_name == "double_well":
     P_x_theory = (
-        np.exp(
-            -A * (x_grid ** 2 - 1.0) ** 2 / kBT
-        )
+        np.exp(-A * (x_grid ** 2 - 1.0) ** 2 / kBT)
         / position_normalization
     )
-    position_theory_label = "Boltzmann teórica"
+    position_theory_label = "Distribución teórica de Boltzmann"
 else:
     P_x_theory = (
         1.0
-        / (
-            np.sqrt(2.0 * np.pi)
-            * std_x_theory
-        )
-        * np.exp(
-            -(x_grid ** 2)
-            / (2.0 * std_x_theory ** 2)
-        )
+        / (np.sqrt(2.0 * np.pi) * std_x_theory)
+        * np.exp(-(x_grid ** 2) / (2.0 * std_x_theory ** 2))
     )
     position_theory_label = "Gaussiana teórica"
 
 plt.plot(
     x_grid,
     P_x_theory,
+    color="red",
     label=position_theory_label
 )
 
@@ -372,16 +350,11 @@ plt.title(
 plt.legend(loc="upper right")
 plt.grid(True)
 
-
 text_fig3 = (
-    f"Estadística de $x$ "
-    f"($t \\geq {t_term:.1f}$):\n"
-    f"$\\mu_x$ = {mean_x:.4f}  "
-    f"(Teórico: 0.0000)\n"
-    f"$\\sigma_x$ = {std_x:.4f}  "
-    f"(Teórico: {std_x_theory:.4f})"
+    f"Estadística de $x$ ($t \\geq {t_term:.2f}$):\n"
+    f"$\\mu_x$ = {mean_x:.4f}  (Teórico: 0.0000)\n"
+    f"$\\sigma_x$ = {std_x:.4f}  (Teórico: {std_x_theory:.4f})"
 )
-
 
 plt.gca().text(
     0.03,
@@ -400,14 +373,12 @@ plt.gca().text(
 plt.tight_layout()
 
 plt.savefig(
-    figures_folder
-    / f"dist_pos{file_suffix}.png",
+    figures_folder / f"dist_pos{file_suffix}.png",
     dpi=300,
     bbox_inches="tight"
 )
 
-
-# Distribución de velocidades
+# 4. Distribución de velocidades
 plt.figure(figsize=(8, 5))
 
 plt.hist(
@@ -418,27 +389,18 @@ plt.hist(
     label="Simulación"
 )
 
-v_grid = np.linspace(
-    min(v_eq),
-    max(v_eq),
-    200
-)
+v_grid = np.linspace(min(v_eq), max(v_eq), 200)
 
 P_v_theory = (
     1.0
-    / (
-        np.sqrt(2.0 * np.pi)
-        * std_v_theory
-    )
-    * np.exp(
-        -(v_grid ** 2)
-        / (2.0 * std_v_theory ** 2)
-    )
+    / (np.sqrt(2.0 * np.pi) * std_v_theory)
+    * np.exp(-(v_grid ** 2) / (2.0 * std_v_theory ** 2))
 )
 
 plt.plot(
     v_grid,
     P_v_theory,
+    color="red",
     label="Gaussiana teórica"
 )
 
@@ -453,16 +415,11 @@ plt.title(
 plt.legend(loc="upper right")
 plt.grid(True)
 
-
 text_fig4 = (
-    f"Estadística de $v$ "
-    f"($t \\geq {t_term:.1f}$):\n"
-    f"$\\mu_v$ = {mean_v:.4f}  "
-    f"(Teórico: 0.0000)\n"
-    f"$\\sigma_v$ = {std_v:.4f}  "
-    f"(Teórico: {std_v_theory:.4f})"
+    f"Estadística de $v$ ($t \\geq {t_term:.2f}$):\n"
+    f"$\\mu_v$ = {mean_v:.4f}  (Teórico: 0.0000)\n"
+    f"$\\sigma_v$ = {std_v:.4f}  (Teórico: {std_v_theory:.4f})"
 )
-
 
 plt.gca().text(
     0.03,
@@ -481,19 +438,20 @@ plt.gca().text(
 plt.tight_layout()
 
 plt.savefig(
-    figures_folder
-    / f"dist_vel{file_suffix}.png",
+    figures_folder / f"dist_vel{file_suffix}.png",
     dpi=300,
     bbox_inches="tight"
 )
 
-
-# Trayectoria
+# 5. Trayectoria
 plt.figure(figsize=(8, 5))
 
-plt.plot(
-    t,
-    x
+plt.plot(t, x, label="$x(t)$")
+plt.axvline(
+    t_term,
+    color="gray",
+    linestyle=":",
+    label=f"Inicio eq. ($t={t_term:.2f}$)"
 )
 
 plt.xlabel("Tiempo $t$")
@@ -504,63 +462,40 @@ plt.title(
     f"({algorithm_label}, {title_parameters})"
 )
 
+plt.legend(loc="upper right")
 plt.grid(True)
 plt.tight_layout()
 
 plt.savefig(
-    figures_folder
-    / f"trayectoria{file_suffix}.png",
+    figures_folder / f"trayectoria{file_suffix}.png",
     dpi=300,
     bbox_inches="tight"
 )
 
-
 print()
 print("===================================")
-print("RESULTADOS DEL OSCILADOR ARMONICO")
+print(f"RESULTADOS DEL MODELO: {model_name.upper()}")
 print("===================================")
 
 print(f"Algoritmo: {algorithm_label}")
 print(f"gamma = {gamma}")
 print(f"h = {dt}")
+print(f"Inicio de equilibrio (t_term) = {t_term:.4f} s (índice {equilibration_start})")
+print(f"Muestras efectivas: N_eff(cin)={kinetic_neff:.1f}, N_eff(pot)={potential_neff:.1f}")
 
 print()
 
-print(
-    f"<E_c> = {mean_Ec:.4f} "
-    f"(teórico {mean_Ec_theory:.4f})"
-)
-
-print(
-    f"<E_p> = {mean_Ep:.4f} "
-    f"(teórico {mean_Ep_theory:.4f})"
-)
-
-print(
-    f"<E_total> = {mean_Etot:.4f} "
-    f"(teórico {mean_Etot_theory:.4f})"
-)
+print(f"<E_c> = {mean_Ec:.4f} (teórico {mean_Ec_theory:.4f})")
+print(f"<E_p> = {mean_Ep:.4f} (teórico {mean_Ep_theory:.4f})")
+print(f"<E_total> = {mean_Etot:.4f} (teórico {mean_Etot_theory:.4f})")
 
 print()
 
-print(
-    f"<x> = {mean_x:.4f}, "
-    f"sigma_x = {std_x:.4f} "
-    f"(teórico {std_x_theory:.4f})"
-)
-
-print(
-    f"<v> = {mean_v:.4f}, "
-    f"sigma_v = {std_v:.4f} "
-    f"(teórico {std_v_theory:.4f})"
-)
+print(f"<x> = {mean_x:.4f}, sigma_x = {std_x:.4f} (teórico {std_x_theory:.4f})")
+print(f"<v> = {mean_v:.4f}, sigma_v = {std_v:.4f} (teórico {std_v_theory:.4f})")
 
 print()
-
-print(
-    "Las 5 gráficas se han guardado en:"
-)
-
+print("Las 5 gráficas se han guardado en:")
 print(figures_folder)
 
 plt.show()
