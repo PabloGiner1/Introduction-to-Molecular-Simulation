@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -99,6 +100,7 @@ v = data[:, 2]
 E_c = data[:, 3]
 E_p = data[:, 4]
 
+run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
 figures_folder = (
     project_root
@@ -106,6 +108,7 @@ figures_folder = (
     / model_name
     / "single_run"
     / "figures"
+    / f"A_{A:g}_eta_{gamma:g}"
 )
 
 figures_folder.mkdir(
@@ -116,14 +119,15 @@ figures_folder.mkdir(
 
 file_suffix = (
     f"_{algorithm_name}"
-    f"_gamma{gamma:.1f}"
+    f"_gamma{gamma:.2f}"
     f"_h{dt:.4f}"
+    f"_run{run_timestamp}"
 )
 
 title_parameters = (
-    f"$A={A:.1f}$, $\\eta={gamma:.1f}$"
+    f"$A={A:.1f}$, $\\eta={gamma:.2f}$"
     if model_name == "double_well"
-    else f"$\\eta={gamma:.1f}$, $dt={dt:.4f}$"
+    else f"$\\eta={gamma:.2f}$, $dt={dt:.4f}$"
 )
 
 

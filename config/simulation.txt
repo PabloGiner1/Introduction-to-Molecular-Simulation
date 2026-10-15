@@ -1,6 +1,6 @@
 algorithm=GJF         #Algoritmo de integración (EULER_MARUYAMA, RUNGE_KUTTA, GJF)
 eta=0.01 
-A=2                         #Coeficiente de amortiguamiento
+A=1.0                         #Coeficiente de amortiguamiento
 h=0.01                          #Paso temporal
 totalTime=100000.0                  #Tiempo total de simulación
 seed=12345                       #Semilla del generador aleatorio
