@@ -108,7 +108,8 @@ figures_folder = (
     / model_name
     / "single_run"
     / "figures"
-    / f"A_{A:g}_eta_{gamma:g}"
+    / f"A_{A:g}"
+    / f"eta_{gamma:.2f}"
 )
 
 figures_folder.mkdir(

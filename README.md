@@ -92,7 +92,7 @@ Contiene los archivos generados directamente por las simulaciones en C++.
 
 Contiene los resultados procesados:
 
-- `figures/`: gráficas, organizadas en subcarpetas por valores de `A` y `eta`; cada archivo incluye fecha y hora para conservar todas las ejecuciones.
+- `figures/`: gráficas, organizadas en subcarpetas por `A` y después por `eta`; cada archivo incluye fecha y hora para conservar todas las ejecuciones.
 - `tables/`: tablas y resúmenes numéricos.
 
 ## `bin/`
