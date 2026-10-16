@@ -159,6 +159,22 @@
             "problemMatcher": []
         },
         {
+            "label": "Barrido detallado pozo doble: A, eta y x0",
+            "type": "process",
+            "command": "${command:python.interpreterPath}",
+            "args": [
+                "${workspaceFolder}/analysis/parameters_sweep.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": [
+                "Compilar TFIII"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
             "label": "Compilar random",
             "type": "shell",
             "command": "clang++",

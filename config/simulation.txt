@@ -4,5 +4,5 @@ A=0.5
 h=0.01
 totalTime=100000
 seed=random
-x0=0.00
-v0=0.00
+initialPosition=-1
+s

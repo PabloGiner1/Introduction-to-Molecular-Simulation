@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -32,6 +33,7 @@ kBT = parameters["kBT"]
 k = parameters["k"]
 A = parameters["A"]
 model = int(parameters["model"])
+initial_position = parameters["x0"]
 
 model_names = {
     1: "harmonic",
@@ -79,6 +81,48 @@ if len(data) < 2:
         "La simulacion no ha generado suficientes datos. "
         "Comprueba que el algoritmo seleccionado esta implementado."
     )
+
+
+def calculate_well_occupancy(positions):
+    positions = np.asarray(positions)
+    if positions.ndim != 1 or len(positions) == 0:
+        raise ValueError("Las posiciones deben ser un array unidimensional no vacio.")
+    if not np.all(np.isfinite(positions)):
+        raise ValueError("Las posiciones contienen valores no finitos.")
+
+    sample_count = np.arange(1, len(positions) + 1)
+    occupancy_left = np.cumsum(positions < 0.0) / sample_count
+    occupancy_right = np.cumsum(positions > 0.0) / sample_count
+    return occupancy_left, occupancy_right
+
+
+def calculate_well_residence_times(times, positions):
+    times = np.asarray(times)
+    positions = np.asarray(positions)
+    if times.ndim != 1 or positions.ndim != 1 or len(times) != len(positions):
+        raise ValueError("Tiempos y posiciones deben ser arrays unidimensionales del mismo tamano.")
+    if len(times) < 2:
+        raise ValueError("Se necesitan al menos dos muestras para calcular tiempos de estancia.")
+    if not np.all(np.isfinite(times)) or not np.all(np.isfinite(positions)):
+        raise ValueError("Los tiempos y las posiciones deben ser finitos.")
+    time_steps = np.diff(times)
+    if np.any(time_steps <= 0.0):
+        raise ValueError("Los tiempos deben ser estrictamente crecientes.")
+
+    sample_duration = float(np.median(time_steps))
+    residence_times = []
+    for in_well in (positions < 0.0, positions > 0.0):
+        transitions = np.diff(np.concatenate(([False], in_well, [False])).astype(int))
+        starts = np.flatnonzero(transitions == 1)
+        ends = np.flatnonzero(transitions == -1)
+        complete = (starts > 0) & (ends < len(times))
+        residence_times.append(
+            times[ends[complete] - 1]
+            - times[starts[complete]]
+            + sample_duration
+        )
+    return residence_times
+
 
 t = data[:, 0]
 x = data[:, 1]
@@ -138,30 +182,40 @@ std_v_theory = float(np.sqrt(kBT / mass))
 # --- GENERACIÓN DE FIGURAS ---
 run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
-figures_folder = (
-    project_root
-    / "results"
-    / model_name
-    / "single_run"
-    / "figures"
-    / f"A_{A:g}"
-    / f"eta_{gamma:.2f}"
-)
+analysis_output_root = os.environ.get("SIMULATION_ANALYSIS_OUTPUT_ROOT")
+if analysis_output_root:
+    figures_folder = (
+        Path(analysis_output_root)
+        / f"A_{A:g}"
+        / f"eta_{gamma:.2f}"
+    )
+else:
+    figures_folder = (
+        project_root
+        / "results"
+        / model_name
+        / "single_run"
+        / "figures"
+        / f"A_{A:g}"
+        / f"eta_{gamma:.2f}"
+    )
 
 figures_folder.mkdir(
     parents=True,
     exist_ok=True
 )
 
+initial_position_suffix = (
+    f"_x0{initial_position:.2f}" if model_name == "double_well" else ""
+)
 file_suffix = (
     f"_{algorithm_name}"
-    f"_gamma{gamma:.2f}"
-    f"_h{dt:.4f}"
+    f"{initial_position_suffix}"
     f"_run{run_timestamp}"
 )
 
 title_parameters = (
-    f"$A={A:.1f}$, $\\eta={gamma:.2f}$"
+    f"$A={A:.1f}$, $\\eta={gamma:.2f}$, $x_0={initial_position:.2f}$"
     if model_name == "double_well"
     else f"$\\eta={gamma:.2f}$, $dt={dt:.4f}$"
 )
@@ -461,6 +515,86 @@ plt.savefig(
     bbox_inches="tight"
 )
 
+if model_name == "double_well":
+    occupancy_left, occupancy_right = calculate_well_occupancy(x_eq)
+    residence_left, residence_right = calculate_well_residence_times(t, x_eq)
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(t, occupancy_left, label="Pozo izquierdo ($x < 0$)")
+    plt.plot(t, occupancy_right, label="Pozo derecho ($x > 0$)")
+    plt.xlabel("Tiempo $t$")
+    plt.xlim(left=0.0)
+    plt.ylabel("Fracción acumulada de muestras $n_i / n_{total}$")
+    plt.ylim(0.0, 1.0)
+    plt.title(
+        f"Ocupación de cada pozo en función del tiempo "
+        f"({algorithm_label}, {title_parameters})"
+    )
+    plt.legend(loc="best")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(
+        figures_folder / f"ocupacion_pozos{file_suffix}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    residence_series = [
+        (residence_left, "Pozo izquierdo ($x < 0$)", "tab:blue"),
+        (residence_right, "Pozo derecho ($x > 0$)", "tab:orange"),
+    ]
+    available_residence_times = [
+        residence_times
+        for residence_times, _, _ in residence_series
+        if len(residence_times) > 0
+    ]
+    plt.figure(figsize=(8, 5))
+    if available_residence_times:
+        automatic_bin_edges = np.histogram_bin_edges(
+            np.concatenate(available_residence_times),
+            bins="auto",
+        )
+        bin_edges = np.linspace(
+            automatic_bin_edges[0],
+            automatic_bin_edges[-1],
+            2 * (len(automatic_bin_edges) - 1) + 1,
+        )
+        for residence_times, label, color in residence_series:
+            if len(residence_times) > 0:
+                plt.hist(
+                    residence_times,
+                    bins=bin_edges,
+                    density=True,
+                    histtype="step",
+                    linewidth=2,
+                    color=color,
+                    label=label,
+                )
+    else:
+        plt.text(
+            0.5,
+            0.5,
+            "No se detectaron estancias cerradas dentro del intervalo analizado.",
+            ha="center",
+            va="center",
+            transform=plt.gca().transAxes,
+        )
+    plt.xlabel("Tiempo de estancia $\\tau$")
+    plt.ylabel("Densidad de probabilidad")
+    plt.title(
+        f"Distribución de tiempos de estancia en cada pozo "
+        f"({algorithm_label}, {title_parameters})"
+    )
+    if available_residence_times:
+        plt.legend(loc="best")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(
+        figures_folder / f"tiempos_estancia{file_suffix}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
 print()
 print("===================================")
 print(f"RESULTADOS DEL MODELO: {model_name.upper()}")
@@ -483,8 +617,13 @@ print()
 print(f"<x> = {mean_x:.4f}, sigma_x = {std_x:.4f} (teórico {std_x_theory:.4f})")
 print(f"<v> = {mean_v:.4f}, sigma_v = {std_v:.4f} (teórico {std_v_theory:.4f})")
 
+if model_name == "double_well":
+    print()
+    print(f"Ocupacion final en x < 0: {occupancy_left[-1]:.4f}")
+    print(f"Ocupacion final en x > 0: {occupancy_right[-1]:.4f}")
+
 print()
-print("Las 5 gráficas se han guardado en:")
+print("Las gráficas se han guardado en:")
 print(figures_folder)
 
 plt.show()

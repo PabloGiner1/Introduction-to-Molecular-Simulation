@@ -96,6 +96,15 @@
   "console": "integratedTerminal",
   "cwd": "${workspaceFolder}",
   "preLaunchTask": "Compilar TFIII"
+},
+    {
+      "name": "Barrido detallado pozo doble: A, eta y x0",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/parameters_sweep.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Compilar TFIII"
 }
   ]
   

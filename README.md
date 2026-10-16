@@ -82,7 +82,11 @@ Contiene las cabeceras `.hpp` correspondientes a los archivos de `src/`.
 
 ## `analysis/harmonic_analysis.py`
 
-Script de Python para analizar los datos obtenidos en la simulación del oscilador armónico y generar estadísticas y gráficas.
+Script de Python para analizar los datos de una ejecución y generar estadísticas y gráficas. Para el doble pozo también calcula y representa la ocupación acumulada de los estados `x < 0` y `x > 0` en función del tiempo, y la distribución de los tiempos consecutivos de estancia en cada pozo. La distribución usa episodios observados entre dos cambios de estado; excluye los intervalos que ya estaban en curso al inicio o que siguen abiertos al final de la simulación. Las muestras con `x = 0` no se asignan a ningún pozo y separan episodios.
+
+## `analysis/parameters_sweep.py`
+
+Ejecuta el análisis detallado del doble pozo para cada combinación de `A = 0.5, 1.0, 2.0`, `eta = 0.01, 0.1, 1.0, 2.0, 5.0` y posición inicial `x0 = -1, 0, 1`, usando el algoritmo, el paso temporal y el tiempo total definidos en `config/simulation.txt`. Produce 45 simulaciones y guarda sus gráficas en `results/double_well/parameter_sweep/single_run/figures/`, separadas por `A` y `eta`, sin mezclarlas con `single_run` normal. Esa carpeta se limpia al iniciar cada barrido, por lo que las salidas anteriores del barrido se reemplazan. Los nombres de las gráficas incluyen algoritmo, `x0` y fecha, sin `eta` ni `h`. El archivo de configuración se restaura al terminar. En VS Code se puede iniciar desde la configuración de lanzamiento o la tarea `Barrido detallado pozo doble: A, eta y x0`; ambas compilan primero la simulación.
 
 ## `data/raw/`
 
