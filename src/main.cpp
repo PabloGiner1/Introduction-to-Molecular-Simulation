@@ -32,7 +32,7 @@ int main()
     simulation.mass = 1.0;
     simulation.kBT = 0.2;
 
-    simulation.initialPosition = 0.0;
+    simulation.initialPosition = 1.0;
     simulation.initialVelocity = 0.0;
 
     modelParameters.k = 1.0;
@@ -126,6 +126,14 @@ int main()
                     seed = (unsigned int)strtoul(value, NULL, 10);
                     useRandomSeed = false;
                 }
+            }
+            else if (strcmp(name, "x0") == 0)
+            {
+                simulation.initialPosition = atof(value);
+            }
+            else if (strcmp(name, "v0") == 0)
+            {
+                simulation.initialVelocity = atof(value);
             }
         }
     }

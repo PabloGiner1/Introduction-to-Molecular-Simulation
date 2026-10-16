@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+
 project_root = Path(__file__).resolve().parents[1]
 config_file = project_root / "config" / "simulation.txt"
 data_folder = project_root / "data" / "raw" / "harmonic"
@@ -21,9 +22,9 @@ figures_folder = results_folder / "figures"
 tables_folder.mkdir(parents=True, exist_ok=True)
 figures_folder.mkdir(parents=True, exist_ok=True)
 
-a_values = [0.1, 0.5, 1.0, 2.0]
-eta_values = [0.1, 1.0, 5.0]
-replicate_count = 3
+a_values = [0.5, 1.0, 2.0]
+eta_values = [0.01, 0.1, 1.0, 2.0, 5.0]
+replicate_count = 5
 
 algorithms = {
     "EULER_MARUYAMA": "euler",
@@ -102,83 +103,85 @@ simulation_results = []
 try:
     for A in a_values:
         for eta in eta_values:
-            for replicate in range(replicate_count):
-                seed = base_seed + replicate * 11111
-                config_file.write_text(
-                    f"algorithm={algorithm}\n"
-                    f"eta={eta:.12g}\n"
-                    f"A={A:.12g}\n"
-                    f"h={dt:.12g}\n"
-                    f"totalTime={total_time:.12g}\n"
-                    f"seed={seed}\n"
-                )
-                print(f"Simulando A={A:g}, eta={eta:g}, seed={seed}")
-
-                result = subprocess.run(
-                    [str(simulation_program)],
-                    cwd=project_root,
-                    capture_output=True,
-                    text=True,
-                )
-                if result.returncode != 0:
-                    raise RuntimeError(
-                        f"Fallo para A={A:g}, eta={eta:g}, seed={seed}:\n"
-                        f"{result.stdout}\n{result.stderr}"
+            for x0 in [-1.0, 1.0]:
+                for replicate in range(replicate_count):
+                    seed = base_seed + replicate * 11111
+                    config_file.write_text(
+                        f"algorithm={algorithm}\n"
+                        f"eta={eta:.12g}\n"
+                        f"A={A:.12g}\n"
+                        f"h={dt:.12g}\n"
+                        f"totalTime={total_time:.12g}\n"
+                        f"seed={seed}\n"
+                        f"initialPosition={x0:.12g}\ns"
                     )
+                    print(f"Simulando A={A:g}, eta={eta:g}, seed={seed}, x0={x0:g}")
 
-                parameters = parse_key_values(parameters_file.read_text())
-                model = int(float(parameters["model"]))
-                if model != 2:
-                    raise RuntimeError(
-                        f"Se esperaba DOUBLE_WELL, pero el ejecutable uso model={model}."
+                    result = subprocess.run(
+                        [str(simulation_program)],
+                        cwd=project_root,
+                        capture_output=True,
+                        text=True,
                     )
+                    if result.returncode != 0:
+                        raise RuntimeError(
+                            f"Fallo para A={A:g}, eta={eta:g}, seed={seed}:\n"
+                            f"{result.stdout}\n{result.stderr}"
+                        )
 
-                actual_A = float(parameters["A"])
-                actual_eta = float(parameters["gamma"])
-                kBT = float(parameters["kBT"])
-                actual_dt = float(parameters["dt"])
-                actual_total_time = float(parameters["totalTime"])
-                data_file = data_folder / f"harmonic_{algorithms[algorithm]}.csv"
-                data = np.atleast_2d(
-                    np.loadtxt(data_file, delimiter=",", skiprows=1)
-                )
-                if len(data) < 2:
-                    raise RuntimeError(f"Datos insuficientes para A={A:g}, eta={eta:g}.")
-                if not np.all(np.isfinite(data)):
-                    raise RuntimeError(
-                        f"Hay valores no finitos para A={A:g}, eta={eta:g}."
+                    parameters = parse_key_values(parameters_file.read_text())
+                    model = int(float(parameters["model"]))
+                    if model != 2:
+                        raise RuntimeError(
+                            f"Se esperaba DOUBLE_WELL, pero el ejecutable uso model={model}."
+                        )
+
+                    actual_A = float(parameters["A"])
+                    actual_eta = float(parameters["gamma"])
+                    kBT = float(parameters["kBT"])
+                    actual_dt = float(parameters["dt"])
+                    actual_total_time = float(parameters["totalTime"])
+                    data_file = data_folder / f"harmonic_{algorithms[algorithm]}.csv"
+                    data = np.atleast_2d(
+                        np.loadtxt(data_file, delimiter=",", skiprows=1)
                     )
+                    if len(data) < 2:
+                        raise RuntimeError(f"Datos insuficientes para A={A:g}, eta={eta:g}.")
+                    if not np.all(np.isfinite(data)):
+                        raise RuntimeError(
+                            f"Hay valores no finitos para A={A:g}, eta={eta:g}."
+                        )
 
-                equilibrium_data = data
-                mean_kinetic = float(np.mean(equilibrium_data[:, 3]))
-                mean_potential = float(np.mean(equilibrium_data[:, 4]))
-                kinetic_theory = 0.5 * kBT
-                potential_theory = theoretical_potential_mean(actual_A, kBT)
-                simulation_results.append({
-                    "A": actual_A,
-                    "eta": actual_eta,
-                    "seed": seed,
-                    "algorithm": algorithm,
-                    "dt": actual_dt,
-                    "totalTime": actual_total_time,
-                    "kBT": kBT,
-                    "first_saved_time": float(data[0, 0]),
-                    "samples_used": len(equilibrium_data),
-                    "mean_kinetic": mean_kinetic,
-                    "kinetic_theory": kinetic_theory,
-                    "kinetic_deviation_percent": relative_deviation(
-                        mean_kinetic, kinetic_theory
-                    ),
-                    "mean_potential": mean_potential,
-                    "potential_canonical_theory": potential_theory,
-                    "potential_deviation_from_canonical_percent": relative_deviation(
-                        mean_potential, potential_theory
-                    ),
-                    "potential_kBT_over_2_reference": kinetic_theory,
-                    "potential_deviation_from_kBT_over_2_percent": relative_deviation(
-                        mean_potential, kinetic_theory
-                    ),
-                })
+                    equilibrium_data = data
+                    mean_kinetic = float(np.mean(equilibrium_data[:, 3]))
+                    mean_potential = float(np.mean(equilibrium_data[:, 4]))
+                    kinetic_theory = 0.5 * kBT
+                    potential_theory = theoretical_potential_mean(actual_A, kBT)
+                    simulation_results.append({
+                        "A": actual_A,
+                        "eta": actual_eta,
+                        "seed": seed,
+                        "algorithm": algorithm,
+                        "dt": actual_dt,
+                        "totalTime": actual_total_time,
+                        "kBT": kBT,
+                        "first_saved_time": float(data[0, 0]),
+                        "samples_used": len(equilibrium_data),
+                        "mean_kinetic": mean_kinetic,
+                        "kinetic_theory": kinetic_theory,
+                        "kinetic_deviation_percent": relative_deviation(
+                            mean_kinetic, kinetic_theory
+                        ),
+                        "mean_potential": mean_potential,
+                        "potential_canonical_theory": potential_theory,
+                        "potential_deviation_from_canonical_percent": relative_deviation(
+                            mean_potential, potential_theory
+                        ),
+                        "potential_kBT_over_2_reference": kinetic_theory,
+                        "potential_deviation_from_kBT_over_2_percent": relative_deviation(
+                            mean_potential, kinetic_theory
+                        ),
+                    })
 finally:
     config_file.write_text(original_config)
 
@@ -230,11 +233,13 @@ for A in a_values:
 write_csv(tables_folder / "double_well_energy_sweep.csv", simulation_results)
 write_csv(tables_folder / "double_well_energy_summary.csv", summary)
 
+offsets = np.linspace(-0.04, 0.04, len(eta_values))
 fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-for eta in eta_values:
+for i, eta in enumerate(eta_values):
     rows = [row for row in summary if row["eta"] == eta]
+    x_offset = [row["A"] + offsets[i] for row in rows]
     axes[0].errorbar(
-        [row["A"] for row in rows],
+        x_offset,
         [row["mean_kinetic"] for row in rows],
         yerr=[row["std_kinetic"] for row in rows],
         marker="o",
@@ -242,7 +247,7 @@ for eta in eta_values:
         label=fr"Simulación, $\eta={eta:g}$",
     )
     axes[1].errorbar(
-        [row["A"] for row in rows],
+        x_offset,
         [row["mean_potential"] for row in rows],
         yerr=[row["std_potential"] for row in rows],
         marker="o",
@@ -284,28 +289,29 @@ fig.savefig(figures_folder / "double_well_mean_energies.png", dpi=300)
 plt.close(fig)
 
 fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-for eta in eta_values:
+for i, eta in enumerate(eta_values):
     rows = [row for row in summary if row["eta"] == eta]
+    x_offset = [row["A"] + offsets[i] for row in rows]
     axes[0].plot(
-        [row["A"] for row in rows],
+        x_offset,
         [row["kinetic_deviation_percent"] for row in rows],
         marker="o",
         label=fr"$\eta={eta:g}$",
     )
-    plt.axhline(
-        y=2,
-        color='red',
-        linestyle='--',
-        linewidth=2,
-        label=r'Tolerancia del 2%',
-    )
     axes[1].plot(
-        [row["A"] for row in rows],
+        x_offset,
         [row["potential_deviation_from_canonical_percent"] for row in rows],
         marker="o",
         label=fr"$\eta={eta:g}$",
     )
-    plt.axhline(
+axes[0].axhline(
+    y=2,
+    color='red',
+    linestyle='--',
+    linewidth=2,
+    label=r'Tolerancia del 2%',
+)
+axes[1].axhline(
     y=2,
     color='red',
     linestyle='--',
