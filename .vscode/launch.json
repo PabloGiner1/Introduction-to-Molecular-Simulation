@@ -114,6 +114,31 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "preLaunchTask": "Compilar TFIII"
+    },
+    {
+      "name": "Polimero: simular y analizar",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/simulation",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "preLaunchTask": "Compilar TFIII",
+      "postDebugTask": "Analizar polimero",
+      "windows": {
+        "program": "${workspaceFolder}/bin/simulation.exe",
+        "MIMode": "gdb",
+        "miDebuggerPath": "gdb",
+        "externalConsole": false,
+        "avoidWindowsConsoleRedirection": false
+      },
+      "osx": {
+        "program": "${workspaceFolder}/bin/simulation",
+        "MIMode": "lldb"
+      }
     }
   ]
 }

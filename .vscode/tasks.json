@@ -10,7 +10,7 @@
             },
             "args": [
                 "-c",
-                "from pathlib import Path; folders=['bin','data/raw/harmonic','data/raw/random','results/harmonic/single_run/figures','results/harmonic/time_convergence/tables','results/harmonic/time_convergence/figures','results/harmonic/algorithm_comparison/tables','results/harmonic/algorithm_comparison/figures','results/random_test/figures','results/double_well/force_sweep/tables','results/double_well/force_sweep/figures']; [Path(p).mkdir(parents=True, exist_ok=True) for p in folders]"
+                "from pathlib import Path; folders=['bin','data/raw/harmonic','data/raw/random','data/raw/polymer','results/harmonic/single_run/figures','results/harmonic/time_convergence/tables','results/harmonic/time_convergence/figures','results/harmonic/algorithm_comparison/tables','results/harmonic/algorithm_comparison/figures','results/random_test/figures','results/double_well/force_sweep/tables','results/double_well/force_sweep/figures','results/polymer/single_run/figures']; [Path(p).mkdir(parents=True, exist_ok=True) for p in folders]"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -31,6 +31,8 @@
                 "${workspaceFolder}/src/simulation.cpp",
                 "${workspaceFolder}/src/models.cpp",
                 "${workspaceFolder}/src/integrators.cpp",
+                "${workspaceFolder}/src/polymer.cpp",
+                "${workspaceFolder}/src/polymer_simulation.cpp",
                 "-I${workspaceFolder}/include",
                 "-o",
                 "${workspaceFolder}/bin/simulation"
@@ -47,6 +49,8 @@
                     "${workspaceFolder}/src/simulation.cpp",
                     "${workspaceFolder}/src/models.cpp",
                     "${workspaceFolder}/src/integrators.cpp",
+                    "${workspaceFolder}/src/polymer.cpp",
+                    "${workspaceFolder}/src/polymer_simulation.cpp",
                     "-I${workspaceFolder}/include",
                     "-o",
                     "${workspaceFolder}/bin/simulation.exe"
@@ -189,6 +193,31 @@
             },
             "dependsOn": [
                 "Compilar TFIII"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
+            "label": "Analizar polimero",
+            "type": "process",
+            "command": "${command:python.interpreterPath}",
+            "windows": {
+                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+            },
+            "args": [
+                "${workspaceFolder}/analysis/polymer_analysis.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Simular y analizar polimero",
+            "dependsOn": [
+                "Compilar TFIII",
+                "Ejecutar simulacion",
+                "Analizar polimero"
             ],
             "dependsOrder": "sequence",
             "problemMatcher": []
