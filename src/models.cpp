@@ -5,16 +5,16 @@
 
 double force(int model, double x, ModelParameters parameters)
 {
-    // Oscilador armónico: F = -k*x
+    // Oscilador armónico
     if (model == HARMONIC)
     {
         return -parameters.k * x;
     }
 
-    // Hay que completar estos dos aun :)
+    // Doble pozo con fuerza externa constante
     if (model == DOUBLE_WELL)
     {
-        return -4.0 * parameters.A * x * (x * x - 1);
+        return -4.0 * parameters.A * x * (x * x - 1.0) + parameters.externalForce;
     }
 
     if (model == POLYMER)
@@ -27,16 +27,16 @@ double force(int model, double x, ModelParameters parameters)
 
 double potential(int model, double x, ModelParameters parameters)
 {
-    // Oscilador armónico: V = 1/2*k*x^2
+    // Oscilador armónico
     if (model == HARMONIC)
     {
         return 0.5 * parameters.k * x * x;
     }
 
-    // Hay que completar estos dos aun :)
+    // V(x) = A(x^2 - 1)^2 - F*x
     if (model == DOUBLE_WELL)
     {
-        return parameters.A * (x * x - 1) * (x * x - 1);
+        return parameters.A * (x * x - 1.0) * (x * x - 1.0) - parameters.externalForce * x;
     }
 
     if (model == POLYMER)

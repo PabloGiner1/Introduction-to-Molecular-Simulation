@@ -10,7 +10,7 @@
             },
             "args": [
                 "-c",
-                "from pathlib import Path; folders=['bin','data/raw/harmonic','data/raw/random','results/harmonic/single_run/figures','results/harmonic/time_convergence/tables','results/harmonic/time_convergence/figures','results/harmonic/algorithm_comparison/tables','results/harmonic/algorithm_comparison/figures','results/random_test/figures']; [Path(p).mkdir(parents=True, exist_ok=True) for p in folders]"
+                "from pathlib import Path; folders=['bin','data/raw/harmonic','data/raw/random','results/harmonic/single_run/figures','results/harmonic/time_convergence/tables','results/harmonic/time_convergence/figures','results/harmonic/algorithm_comparison/tables','results/harmonic/algorithm_comparison/figures','results/random_test/figures','results/double_well/force_sweep/tables','results/double_well/force_sweep/figures']; [Path(p).mkdir(parents=True, exist_ok=True) for p in folders]"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -164,6 +164,25 @@
             "command": "${command:python.interpreterPath}",
             "args": [
                 "${workspaceFolder}/analysis/parameters_sweep.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": [
+                "Compilar TFIII"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
+            "label": "Barrido fuerza pozo doble",
+            "type": "process",
+            "command": "${command:python.interpreterPath}",
+            "windows": {
+                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+            },
+            "args": [
+                "${workspaceFolder}/analysis/force_sweep.py"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

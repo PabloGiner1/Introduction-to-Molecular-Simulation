@@ -3,12 +3,11 @@ from pathlib import Path
 import csv
 import math
 import os
-import secrets
 import subprocess
 
 import matplotlib.pyplot as plt
 import numpy as np
-
+from pymbar.timeseries import detect_equilibration
 
 
 project_root = Path(__file__).resolve().parents[1]
@@ -22,9 +21,10 @@ figures_folder = results_folder / "figures"
 tables_folder.mkdir(parents=True, exist_ok=True)
 figures_folder.mkdir(parents=True, exist_ok=True)
 
-a_values = [0.5, 1.0, 2.0]
-eta_values = [0.01, 0.1, 1.0, 2.0, 5.0]
-replicate_count = 5
+a_values = [0.1, 0.5, 1.0, 2.0]
+eta_values = [0.001, 0.1, 1.0, 5.0]
+replicate_count = 3
+min_required_neff = 50.0  # Umbral mínimo de muestras efectivas no correlacionadas
 
 algorithms = {
     "EULER_MARUYAMA": "euler",
@@ -84,17 +84,7 @@ if algorithm not in algorithms:
 
 dt = float(base_config.get("h", "0.001"))
 total_time = float(base_config.get("totalTime", "1000.0"))
-seed_setting = base_config.get("seed", "12345")
-max_base_seed = (2 ** 32 - 1) - (replicate_count - 1) * 11111
-if seed_setting.lower() == "random":
-    base_seed = secrets.randbelow(max_base_seed + 1)
-else:
-    base_seed = int(seed_setting)
-    if not 0 <= base_seed <= max_base_seed:
-        raise ValueError(
-            f"La semilla base debe estar entre 0 y {max_base_seed} "
-            "para dejar espacio a las semillas de las réplicas."
-        )
+base_seed = int(base_config.get("seed", "12345"))
 if dt <= 0.0 or total_time <= 0.0:
     raise ValueError("h y totalTime deben ser positivos")
 
@@ -103,85 +93,110 @@ simulation_results = []
 try:
     for A in a_values:
         for eta in eta_values:
-            for x0 in [-1.0, 1.0]:
-                for replicate in range(replicate_count):
-                    seed = base_seed + replicate * 11111
-                    config_file.write_text(
-                        f"algorithm={algorithm}\n"
-                        f"eta={eta:.12g}\n"
-                        f"A={A:.12g}\n"
-                        f"h={dt:.12g}\n"
-                        f"totalTime={total_time:.12g}\n"
-                        f"seed={seed}\n"
-                        f"initialPosition={x0:.12g}\ns"
+            for replicate in range(replicate_count):
+                seed = base_seed + replicate * 11111
+                config_file.write_text(
+                    f"algorithm={algorithm}\n"
+                    f"eta={eta:.12g}\n"
+                    f"A={A:.12g}\n"
+                    f"h={dt:.12g}\n"
+                    f"totalTime={total_time:.12g}\n"
+                    f"seed={seed}\n"
+                )
+                print(f"Simulando A={A:g}, eta={eta:g}, seed={seed}")
+
+                result = subprocess.run(
+                    [str(simulation_program)],
+                    cwd=project_root,
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode != 0:
+                    raise RuntimeError(
+                        f"Fallo para A={A:g}, eta={eta:g}, seed={seed}:\n"
+                        f"{result.stdout}\n{result.stderr}"
                     )
-                    print(f"Simulando A={A:g}, eta={eta:g}, seed={seed}, x0={x0:g}")
 
-                    result = subprocess.run(
-                        [str(simulation_program)],
-                        cwd=project_root,
-                        capture_output=True,
-                        text=True,
+                parameters = parse_key_values(parameters_file.read_text())
+                model = int(float(parameters["model"]))
+                if model != 2:
+                    raise RuntimeError(
+                        f"Se esperaba DOUBLE_WELL, pero el ejecutable uso model={model}."
                     )
-                    if result.returncode != 0:
-                        raise RuntimeError(
-                            f"Fallo para A={A:g}, eta={eta:g}, seed={seed}:\n"
-                            f"{result.stdout}\n{result.stderr}"
-                        )
 
-                    parameters = parse_key_values(parameters_file.read_text())
-                    model = int(float(parameters["model"]))
-                    if model != 2:
-                        raise RuntimeError(
-                            f"Se esperaba DOUBLE_WELL, pero el ejecutable uso model={model}."
-                        )
-
-                    actual_A = float(parameters["A"])
-                    actual_eta = float(parameters["gamma"])
-                    kBT = float(parameters["kBT"])
-                    actual_dt = float(parameters["dt"])
-                    actual_total_time = float(parameters["totalTime"])
-                    data_file = data_folder / f"harmonic_{algorithms[algorithm]}.csv"
-                    data = np.atleast_2d(
-                        np.loadtxt(data_file, delimiter=",", skiprows=1)
+                actual_A = float(parameters["A"])
+                actual_eta = float(parameters["gamma"])
+                kBT = float(parameters["kBT"])
+                actual_dt = float(parameters["dt"])
+                actual_total_time = float(parameters["totalTime"])
+                data_file = data_folder / f"harmonic_{algorithms[algorithm]}.csv"
+                data = np.atleast_2d(
+                    np.loadtxt(data_file, delimiter=",", skiprows=1)
+                )
+                if len(data) < 2:
+                    raise RuntimeError(f"Datos insuficientes para A={A:g}, eta={eta:g}.")
+                if not np.all(np.isfinite(data)):
+                    raise RuntimeError(
+                        f"Hay valores no finitos para A={A:g}, eta={eta:g}."
                     )
-                    if len(data) < 2:
-                        raise RuntimeError(f"Datos insuficientes para A={A:g}, eta={eta:g}.")
-                    if not np.all(np.isfinite(data)):
-                        raise RuntimeError(
-                            f"Hay valores no finitos para A={A:g}, eta={eta:g}."
-                        )
 
-                    equilibrium_data = data
-                    mean_kinetic = float(np.mean(equilibrium_data[:, 3]))
-                    mean_potential = float(np.mean(equilibrium_data[:, 4]))
-                    kinetic_theory = 0.5 * kBT
-                    potential_theory = theoretical_potential_mean(actual_A, kBT)
-                    simulation_results.append({
-                        "A": actual_A,
-                        "eta": actual_eta,
-                        "seed": seed,
-                        "algorithm": algorithm,
-                        "dt": actual_dt,
-                        "totalTime": actual_total_time,
-                        "kBT": kBT,
-                        "first_saved_time": float(data[0, 0]),
-                        "samples_used": len(equilibrium_data),
-                        "mean_kinetic": mean_kinetic,
-                        "kinetic_theory": kinetic_theory,
-                        "kinetic_deviation_percent": relative_deviation(
-                            mean_kinetic, kinetic_theory
-                        ),
-                        "mean_potential": mean_potential,
-                        "potential_canonical_theory": potential_theory,
-                        "potential_deviation_from_canonical_percent": relative_deviation(
-                            mean_potential, potential_theory
-                        ),
-                        "potential_kBT_over_2_reference": kinetic_theory,
-                        "potential_deviation_from_kBT_over_2_percent": relative_deviation(
-                            mean_potential, kinetic_theory
-                        ),
-                    })
+                kinetic_start, kinetic_g, kinetic_neff = detect_equilibration(
+                    data[:, 3]
+                )
+                potential_start, potential_g, potential_neff = detect_equilibration(
+                    data[:, 4]
+                )
+                equilibration_start = max(kinetic_start, potential_start)
+                if equilibration_start >= len(data) - 1:
+                    raise RuntimeError(
+                        f"No quedan suficientes muestras en equilibrio para "
+                        f"A={A:g}, eta={eta:g}."
+                    )
+
+                # Control de muestras efectivas mínimas
+                if kinetic_neff < min_required_neff or potential_neff < min_required_neff:
+                    print(
+                        f"  [AVISO] Muestras efectivas bajas para A={A:g}, eta={eta:g}, seed={seed}: "
+                        f"N_eff(cin)={kinetic_neff:.1f}, N_eff(pot)={potential_neff:.1f}"
+                    )
+
+                equilibrium_data = data[equilibration_start:]
+                mean_kinetic = float(np.mean(equilibrium_data[:, 3]))
+                mean_potential = float(np.mean(equilibrium_data[:, 4]))
+                kinetic_theory = 0.5 * kBT
+                potential_theory = theoretical_potential_mean(actual_A, kBT)
+                simulation_results.append({
+                    "A": actual_A,
+                    "eta": actual_eta,
+                    "seed": seed,
+                    "algorithm": algorithm,
+                    "dt": actual_dt,
+                    "totalTime": actual_total_time,
+                    "kBT": kBT,
+                    "kinetic_equilibration_start_index": kinetic_start,
+                    "potential_equilibration_start_index": potential_start,
+                    "equilibration_start_index": equilibration_start,
+                    "equilibration_start_time": float(data[equilibration_start, 0]),
+                    "kinetic_statistical_inefficiency": kinetic_g,
+                    "potential_statistical_inefficiency": potential_g,
+                    "kinetic_effective_samples": kinetic_neff,
+                    "potential_effective_samples": potential_neff,
+                    "equilibrium_samples": len(equilibrium_data),
+                    "mean_kinetic": mean_kinetic,
+                    "kinetic_theory": kinetic_theory,
+                    "kinetic_deviation_percent": relative_deviation(
+                        mean_kinetic, kinetic_theory
+                    ),
+                    "mean_potential": mean_potential,
+                    "potential_canonical_theory": potential_theory,
+                    "potential_deviation_from_canonical_percent": relative_deviation(
+                        mean_potential, potential_theory
+                    ),
+                    "potential_kBT_over_2_reference": kinetic_theory,
+                    "potential_deviation_from_kBT_over_2_percent": relative_deviation(
+                        mean_potential, kinetic_theory
+                    ),
+                })
 finally:
     config_file.write_text(original_config)
 
@@ -233,13 +248,11 @@ for A in a_values:
 write_csv(tables_folder / "double_well_energy_sweep.csv", simulation_results)
 write_csv(tables_folder / "double_well_energy_summary.csv", summary)
 
-offsets = np.linspace(-0.04, 0.04, len(eta_values))
 fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-for i, eta in enumerate(eta_values):
+for eta in eta_values:
     rows = [row for row in summary if row["eta"] == eta]
-    x_offset = [row["A"] + offsets[i] for row in rows]
     axes[0].errorbar(
-        x_offset,
+        [row["A"] for row in rows],
         [row["mean_kinetic"] for row in rows],
         yerr=[row["std_kinetic"] for row in rows],
         marker="o",
@@ -247,14 +260,13 @@ for i, eta in enumerate(eta_values):
         label=fr"Simulación, $\eta={eta:g}$",
     )
     axes[1].errorbar(
-        x_offset,
+        [row["A"] for row in rows],
         [row["mean_potential"] for row in rows],
         yerr=[row["std_potential"] for row in rows],
         marker="o",
         capsize=3,
         label=fr"Simulación, $\eta={eta:g}$",
     )
-
 
 theory_rows = [row for row in summary if row["eta"] == eta_values[0]]
 axes[0].axhline(
@@ -289,36 +301,20 @@ fig.savefig(figures_folder / "double_well_mean_energies.png", dpi=300)
 plt.close(fig)
 
 fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-for i, eta in enumerate(eta_values):
+for eta in eta_values:
     rows = [row for row in summary if row["eta"] == eta]
-    x_offset = [row["A"] + offsets[i] for row in rows]
     axes[0].plot(
-        x_offset,
+        [row["A"] for row in rows],
         [row["kinetic_deviation_percent"] for row in rows],
         marker="o",
         label=fr"$\eta={eta:g}$",
     )
     axes[1].plot(
-        x_offset,
+        [row["A"] for row in rows],
         [row["potential_deviation_from_canonical_percent"] for row in rows],
         marker="o",
         label=fr"$\eta={eta:g}$",
     )
-axes[0].axhline(
-    y=2,
-    color='red',
-    linestyle='--',
-    linewidth=2,
-    label=r'Tolerancia del 2%',
-)
-axes[1].axhline(
-    y=2,
-    color='red',
-    linestyle='--',
-    linewidth=2,
-    label=r'Tolerancia del 2%',
-)
-
 # CORREGIDO: Se cerró el símbolo $ al final de la cadena
 axes[0].set_title(r"Desviación de $\langle E_{cin}\rangle$ respecto a $k_BT/2$")
 axes[1].set_title(

@@ -1,8 +1,13 @@
 algorithm=GJF
-eta=0.01
-A=0.5
+
+eta=1.0
+A=1.0
+force=0.0
+
 h=0.01
 totalTime=100000
+
 seed=random
-initialPosition=-1
-s
+
+x0=1.0
+v0=0.0

@@ -74,8 +74,8 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
         fprintf(parametersFile, "k=%lf\n", modelParameters.k);
         fprintf(parametersFile, "algorithm=%d\n", algorithm);
         fprintf(parametersFile, "A=%lf\n", modelParameters.A);
+        fprintf(parametersFile, "force=%lf\n", modelParameters.externalForce);
         fprintf(parametersFile, "model=%d\n", model);
-
 
         fclose(parametersFile);
     }
@@ -83,20 +83,19 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
     // Cabecera del CSV
     fprintf(file, "time,x,v,kinetic,potential\n");
 
-
     // Valores teoricos para termalizacion
     tolerancia = 0.05;
     desv_v_teorica = sqrt(simulation.kBT / simulation.mass);
 
     double v_ventana[ventana];
-    int ventanas_necesarias =3;
+    int ventanas_necesarias = 3;
     int indice_ventana = 0;
     int ventanas_consecutivas = 0;
     int ventanas_permitidas = 0;
     int step_termalizacion = 0;
 
-
-    while(TermalizacionAlcanzada == 0){
+    while (TermalizacionAlcanzada == 0)
+    {
 
         time = step_termalizacion * simulation.dt;
 
@@ -111,16 +110,15 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
                 modelParameters);
         }
 
-
-         //Hacemos una ventana movil, cuando llega a 500 sustituye el valor inicial por el siguiente y así sucesivamente
+        // Hacemos una ventana movil, cuando llega a 500 sustituye el valor inicial por el siguiente y así sucesivamente
         v_ventana[indice_ventana] = v;
         indice_ventana = (indice_ventana + 1) % ventana;
-        if(indice_ventana == 0)
+        if (indice_ventana == 0)
         {
-            //Calculamos la media y la varianza de la velocidad para determinar si se ha alcanzado la termalización
+            // Calculamos la media y la varianza de la velocidad para determinar si se ha alcanzado la termalización
             promedio_v = 0.0;
             promedio_v2 = 0.0;
-            for(int i = 0; i < ventana; i++)
+            for (int i = 0; i < ventana; i++)
             {
                 promedio_v += v_ventana[i];
                 promedio_v2 += v_ventana[i] * v_ventana[i];
@@ -129,25 +127,35 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
             desv_v = sqrt(varianza);
         }
 
-        if(step_termalizacion > ventana && TermalizacionAlcanzada == 0 && indice_ventana == 0)
+        if (step_termalizacion > ventana && TermalizacionAlcanzada == 0 && indice_ventana == 0)
         {
-            if(fabs((desv_v - desv_v_teorica)/desv_v_teorica) < tolerancia){
-            ventanas_consecutivas++;
-            }else {
+            if (fabs((desv_v - desv_v_teorica) / desv_v_teorica) < tolerancia)
+            {
+                ventanas_consecutivas++;
+            }
+            else
+            {
                 ventanas_permitidas++;
-                if(ventanas_permitidas > 1)
+                if (ventanas_permitidas > 1)
                 {
-                ventanas_consecutivas = 0;
-                ventanas_permitidas = 0;
+                    ventanas_consecutivas = 0;
+                    ventanas_permitidas = 0;
                 }
             }
-            if(ventanas_consecutivas >= ventanas_necesarias)
+            if (ventanas_consecutivas >= ventanas_necesarias)
             {
                 printf("Termalizacion alcanzada en el paso %d\n", step_termalizacion);
                 TermalizacionAlcanzada = 1;
             }
-            
         }
+
+        if (step_termalizacion >= numberOfSteps && TermalizacionAlcanzada == 0)
+        {
+            printf("Error: thermalization was not reached\n");
+            fclose(file);
+            exit(1);
+        }
+
         step_termalizacion++;
     }
 
@@ -167,9 +175,7 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
                 modelParameters);
         }
 
-       
-
-                if ((step % saveEvery == 0 || step == numberOfSteps))
+        if ((step % saveEvery == 0 || step == numberOfSteps))
         {
             kineticEnergy = 0.5 * simulation.mass * v * v;
             potentialEnergy = potential(model, x, modelParameters);
@@ -183,7 +189,6 @@ void runSimulation(int model, int algorithm, SimulationParameters simulation, Mo
                 kineticEnergy,
                 potentialEnergy);
         }
-
     }
 
     fclose(file);

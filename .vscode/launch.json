@@ -89,14 +89,14 @@
       ]
     },
     {
-  "name": "Estudio pozo doble: A y eta",
-  "type": "debugpy",
-  "request": "launch",
-  "program": "${workspaceFolder}/analysis/double_well_parameter_sweep.py",
-  "console": "integratedTerminal",
-  "cwd": "${workspaceFolder}",
-  "preLaunchTask": "Compilar TFIII"
-},
+      "name": "Estudio pozo doble: A y eta",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/double_well_parameter_sweep.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Compilar TFIII"
+    },
     {
       "name": "Barrido detallado pozo doble: A, eta y x0",
       "type": "debugpy",
@@ -105,7 +105,15 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "preLaunchTask": "Compilar TFIII"
-}
+    },
+    {
+      "name": "Barrido fuerza pozo doble",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/force_sweep.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Compilar TFIII"
+    }
   ]
-  
 }

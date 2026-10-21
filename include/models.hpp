@@ -9,8 +9,9 @@
 // Parámetros propios del modelo
 struct ModelParameters
 {
-    double k; // Constante elástica del oscilador
+    double k;
     double A;
+    double externalForce;
 };
 
 // Calcula la fuerza en la posición x
