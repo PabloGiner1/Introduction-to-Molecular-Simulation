@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Ejecutar simulacion y analizar",
+      "name": "Oscilador: Simular y analizar",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/bin/simulation",
@@ -12,8 +12,8 @@
       "environment": [],
       "externalConsole": false,
       "MIMode": "lldb",
-      "preLaunchTask": "Compilar TFIII",
-      "postDebugTask": "Analizar resultados",
+      "preLaunchTask": "General: Compilar TFIII",
+      "postDebugTask": "Oscilador: Analizar resultados",
       "windows": {
         "program": "${workspaceFolder}/bin/simulation.exe",
         "MIMode": "gdb",
@@ -27,25 +27,95 @@
       }
     },
     {
-      "name": "Estudio convergencia temporal",
+      "name": "Oscilador: Convergencia temporal",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/analysis/harmonic_sweep.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "preLaunchTask": "Compilar TFIII"
+      "preLaunchTask": "General: Compilar TFIII"
     },
     {
-      "name": "Estudio de algoritmos",
+      "name": "Oscilador: Comparar algoritmos",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/analysis/harmonic_algorithm_sweep.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "preLaunchTask": "Compilar TFIII"
+      "preLaunchTask": "General: Compilar TFIII"
     },
     {
-      "name": "Ejecutar analisis de rand",
+      "name": "Doble pozo: Barrido A y eta",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/double_well_parameter_sweep.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "General: Compilar TFIII"
+    },
+    {
+      "name": "Doble pozo: Barrido A, eta y x0",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/parameters_sweep.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "General: Compilar TFIII"
+    },
+    {
+      "name": "Doble pozo: Fuerza externa",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/force_sweep.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "General: Compilar TFIII"
+    },
+    {
+      "name": "Doble pozo: Tiempos de estancia",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/residence_time_sweep.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "General: Compilar TFIII"
+    },
+    {
+      "name": "Polimero: Simular y analizar",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/simulation",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "preLaunchTask": "General: Compilar TFIII",
+      "postDebugTask": "Polimero: Analizar resultados",
+      "windows": {
+        "program": "${workspaceFolder}/bin/simulation.exe",
+        "MIMode": "gdb",
+        "miDebuggerPath": "gdb",
+        "externalConsole": false,
+        "avoidWindowsConsoleRedirection": false
+      },
+      "osx": {
+        "program": "${workspaceFolder}/bin/simulation",
+        "MIMode": "lldb"
+      }
+    },
+    {
+      "name": "Polimero: Barrido numero de particulas",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/polymer_size_sweep.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "General: Compilar TFIII"
+    },
+    {
+      "name": "Aleatorios: Test completo",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/bin/random_test",
@@ -55,8 +125,8 @@
       "environment": [],
       "externalConsole": false,
       "MIMode": "lldb",
-      "preLaunchTask": "Compilar random",
-      "postDebugTask": "Analizar random",
+      "preLaunchTask": "Aleatorios: Compilar test",
+      "postDebugTask": "Aleatorios: Analizar test",
       "windows": {
         "program": "${workspaceFolder}/bin/random_test.exe",
         "MIMode": "gdb",
@@ -70,7 +140,7 @@
       }
     },
     {
-      "name": "C/C++ Runner: Debug Session",
+      "name": "Utilidad: C/C++ Runner",
       "type": "cppdbg",
       "request": "launch",
       "args": [],
@@ -87,58 +157,6 @@
           "ignoreFailures": true
         }
       ]
-    },
-    {
-      "name": "Estudio pozo doble: A y eta",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/analysis/double_well_parameter_sweep.py",
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "preLaunchTask": "Compilar TFIII"
-    },
-    {
-      "name": "Barrido detallado pozo doble: A, eta y x0",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/analysis/parameters_sweep.py",
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "preLaunchTask": "Compilar TFIII"
-    },
-    {
-      "name": "Barrido fuerza pozo doble",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/analysis/force_sweep.py",
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "preLaunchTask": "Compilar TFIII"
-    },
-    {
-      "name": "Polimero: simular y analizar",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/bin/simulation",
-      "args": [],
-      "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false,
-      "MIMode": "lldb",
-      "preLaunchTask": "Compilar TFIII",
-      "postDebugTask": "Analizar polimero",
-      "windows": {
-        "program": "${workspaceFolder}/bin/simulation.exe",
-        "MIMode": "gdb",
-        "miDebuggerPath": "gdb",
-        "externalConsole": false,
-        "avoidWindowsConsoleRedirection": false
-      },
-      "osx": {
-        "program": "${workspaceFolder}/bin/simulation",
-        "MIMode": "lldb"
-      }
     }
   ]
 }

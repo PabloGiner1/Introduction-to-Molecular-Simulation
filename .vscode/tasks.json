@@ -2,7 +2,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Preparar carpetas",
+            "label": "General: Preparar carpetas",
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
@@ -10,7 +10,7 @@
             },
             "args": [
                 "-c",
-                "from pathlib import Path; folders=['bin','data/raw/harmonic','data/raw/random','data/raw/polymer','results/harmonic/single_run/figures','results/harmonic/time_convergence/tables','results/harmonic/time_convergence/figures','results/harmonic/algorithm_comparison/tables','results/harmonic/algorithm_comparison/figures','results/random_test/figures','results/double_well/force_sweep/tables','results/double_well/force_sweep/figures','results/polymer/single_run/figures']; [Path(p).mkdir(parents=True, exist_ok=True) for p in folders]"
+                "from pathlib import Path; folders=['bin','data/raw/harmonic','data/raw/random','data/raw/polymer','data/raw/polymer/size_sweep','results/harmonic/single_run/figures','results/harmonic/time_convergence/tables','results/harmonic/time_convergence/figures','results/harmonic/algorithm_comparison/tables','results/harmonic/algorithm_comparison/figures','results/random_test/figures','results/double_well/force_sweep/tables','results/double_well/force_sweep/figures','results/double_well/residence_time/tables','results/double_well/residence_time/figures','results/polymer/single_run/figures','results/polymer/size_sweep/tables','results/polymer/size_sweep/figures']; [Path(p).mkdir(parents=True, exist_ok=True) for p in folders]"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -18,7 +18,7 @@
             "problemMatcher": []
         },
         {
-            "label": "Compilar TFIII",
+            "label": "General: Compilar TFIII",
             "type": "shell",
             "command": "clang++",
             "args": [
@@ -60,7 +60,7 @@
                 "cwd": "${workspaceFolder}"
             },
             "dependsOn": [
-                "Preparar carpetas"
+                "General: Preparar carpetas"
             ],
             "dependsOrder": "sequence",
             "problemMatcher": [
@@ -72,7 +72,7 @@
             }
         },
         {
-            "label": "Ejecutar simulacion",
+            "label": "General: Ejecutar simulacion",
             "type": "process",
             "command": "${workspaceFolder}/bin/simulation",
             "windows": {
@@ -84,7 +84,7 @@
             "problemMatcher": []
         },
         {
-            "label": "Analizar resultados",
+            "label": "Oscilador: Analizar resultados",
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
@@ -99,17 +99,17 @@
             "problemMatcher": []
         },
         {
-            "label": "Simular y analizar",
+            "label": "Oscilador: Simular y analizar",
             "dependsOn": [
-                "Compilar TFIII",
-                "Ejecutar simulacion",
-                "Analizar resultados"
+                "General: Compilar TFIII",
+                "General: Ejecutar simulacion",
+                "Oscilador: Analizar resultados"
             ],
             "dependsOrder": "sequence",
             "problemMatcher": []
         },
         {
-            "label": "Estudio convergencia temporal",
+            "label": "Oscilador: Convergencia temporal",
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
@@ -122,13 +122,13 @@
                 "cwd": "${workspaceFolder}"
             },
             "dependsOn": [
-                "Compilar TFIII"
+                "General: Compilar TFIII"
             ],
             "dependsOrder": "sequence",
             "problemMatcher": []
         },
         {
-            "label": "Estudio de algoritmos",
+            "label": "Oscilador: Comparar algoritmos",
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
@@ -141,15 +141,18 @@
                 "cwd": "${workspaceFolder}"
             },
             "dependsOn": [
-                "Compilar TFIII"
+                "General: Compilar TFIII"
             ],
             "dependsOrder": "sequence",
             "problemMatcher": []
         },
         {
-            "label": "Estudio pozo doble: A y eta",
+            "label": "Doble pozo: Barrido A y eta",
             "type": "process",
-            "command": "C:\\Users\\hugos\\anaconda3\\python.exe",
+            "command": "${command:python.interpreterPath}",
+            "windows": {
+                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+            },
             "args": [
                 "${workspaceFolder}/analysis/double_well_parameter_sweep.py"
             ],
@@ -157,15 +160,18 @@
                 "cwd": "${workspaceFolder}"
             },
             "dependsOn": [
-                "Compilar TFIII"
+                "General: Compilar TFIII"
             ],
             "dependsOrder": "sequence",
             "problemMatcher": []
         },
         {
-            "label": "Barrido detallado pozo doble: A, eta y x0",
+            "label": "Doble pozo: Barrido A, eta y x0",
             "type": "process",
             "command": "${command:python.interpreterPath}",
+            "windows": {
+                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+            },
             "args": [
                 "${workspaceFolder}/analysis/parameters_sweep.py"
             ],
@@ -173,13 +179,13 @@
                 "cwd": "${workspaceFolder}"
             },
             "dependsOn": [
-                "Compilar TFIII"
+                "General: Compilar TFIII"
             ],
             "dependsOrder": "sequence",
             "problemMatcher": []
         },
         {
-            "label": "Barrido fuerza pozo doble",
+            "label": "Doble pozo: Fuerza externa",
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
@@ -192,13 +198,32 @@
                 "cwd": "${workspaceFolder}"
             },
             "dependsOn": [
-                "Compilar TFIII"
+                "General: Compilar TFIII"
             ],
             "dependsOrder": "sequence",
             "problemMatcher": []
         },
         {
-            "label": "Analizar polimero",
+            "label": "Doble pozo: Tiempos de estancia",
+            "type": "process",
+            "command": "${command:python.interpreterPath}",
+            "windows": {
+                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+            },
+            "args": [
+                "${workspaceFolder}/analysis/residence_time_sweep.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": [
+                "General: Compilar TFIII"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
+            "label": "Polimero: Analizar resultados",
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
@@ -213,17 +238,36 @@
             "problemMatcher": []
         },
         {
-            "label": "Simular y analizar polimero",
+            "label": "Polimero: Simular y analizar",
             "dependsOn": [
-                "Compilar TFIII",
-                "Ejecutar simulacion",
-                "Analizar polimero"
+                "General: Compilar TFIII",
+                "General: Ejecutar simulacion",
+                "Polimero: Analizar resultados"
             ],
             "dependsOrder": "sequence",
             "problemMatcher": []
         },
         {
-            "label": "Compilar random",
+            "label": "Polimero: Barrido numero de particulas",
+            "type": "process",
+            "command": "${command:python.interpreterPath}",
+            "windows": {
+                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+            },
+            "args": [
+                "${workspaceFolder}/analysis/polymer_size_sweep.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": [
+                "General: Compilar TFIII"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
+            "label": "Aleatorios: Compilar test",
             "type": "shell",
             "command": "clang++",
             "args": [
@@ -253,7 +297,7 @@
                 "cwd": "${workspaceFolder}"
             },
             "dependsOn": [
-                "Preparar carpetas"
+                "General: Preparar carpetas"
             ],
             "dependsOrder": "sequence",
             "problemMatcher": [
@@ -261,7 +305,7 @@
             ]
         },
         {
-            "label": "Ejecutar random",
+            "label": "Aleatorios: Ejecutar test",
             "type": "process",
             "command": "${workspaceFolder}/bin/random_test",
             "windows": {
@@ -273,7 +317,7 @@
             "problemMatcher": []
         },
         {
-            "label": "Analizar random",
+            "label": "Aleatorios: Analizar test",
             "type": "process",
             "command": "${command:python.interpreterPath}",
             "windows": {
@@ -288,18 +332,18 @@
             "problemMatcher": []
         },
         {
-            "label": "Random completo",
+            "label": "Aleatorios: Test completo",
             "dependsOn": [
-                "Compilar random",
-                "Ejecutar random",
-                "Analizar random"
+                "Aleatorios: Compilar test",
+                "Aleatorios: Ejecutar test",
+                "Aleatorios: Analizar test"
             ],
             "dependsOrder": "sequence",
             "problemMatcher": []
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++.exe build active file",
+            "label": "Utilidad: Compilar archivo C++ activo",
             "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
             "args": [
                 "-fdiagnostics-color=always",
