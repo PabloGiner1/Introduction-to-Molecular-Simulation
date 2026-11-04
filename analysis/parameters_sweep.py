@@ -15,7 +15,8 @@ sweep_figures_folder = (
     / "results"
     / "double_well"
     / "parameter_sweep"
-    / "sweep_runs"
+    / "single_run"
+    / "figures"
 )
 
 a_values = [0.5, 1.0, 2.0]
