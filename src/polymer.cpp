@@ -91,6 +91,9 @@ void polymerForces(
         fy[i + 1] -= forceY;
         fz[i + 1] -= forceZ;
     }
+
+    // Fuerza constante en dirección +x sobre el último monómero
+    fx[polymer.N - 1] += polymer.externalForce;
 }
 
 double polymerKineticEnergy(
@@ -206,6 +209,17 @@ void polymerGJFStep(
     // Nuevas posiciones
     for (int i = 0; i < polymer.N; i++)
     {
+        if (i == 0)
+        {
+            xNew[i] = x[i];
+            yNew[i] = y[i];
+            zNew[i] = z[i];
+            betaX[i] = 0.0;
+            betaY[i] = 0.0;
+            betaZ[i] = 0.0;
+            continue;
+        }
+
         betaX[i] =
             noiseAmplitude * randGaussian();
 
@@ -238,6 +252,14 @@ void polymerGJFStep(
     // Nuevas velocidades
     for (int i = 0; i < polymer.N; i++)
     {
+        if (i == 0)
+        {
+            vx[i] = 0.0;
+            vy[i] = 0.0;
+            vz[i] = 0.0;
+            continue;
+        }
+
         vxNew[i] =
             a * vx[i] + simulation.dt * (a * fx[i] + fxNew[i]) / (2.0 * simulation.mass) + b * betaX[i] / simulation.mass;
 

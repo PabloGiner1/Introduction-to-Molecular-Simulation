@@ -10,6 +10,7 @@ struct PolymerParameters
     int N;
     double springConstant;
     double equilibriumLength;
+    double externalForce;
 };
 
 // Inicializa una cadena recta

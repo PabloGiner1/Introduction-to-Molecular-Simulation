@@ -72,6 +72,13 @@ Contiene los algoritmos de integración numérica:
 - Runge-Kutta estocástico;
 - Grønbech-Jensen.
 
+### Polímero con un extremo fijo y fuerza externa
+
+En una simulación `POLYMER`, el primer monómero permanece fijo en su posición
+inicial y el parámetro `force` aplica una fuerza constante en dirección `+x`
+sobre el último monómero. Se puede ajustar en `config/simulation.txt`; por
+ejemplo, `force=1.0`. El valor cero desactiva la fuerza.
+
 ## Carpeta `include/`
 
 Contiene las cabeceras `.hpp` correspondientes a los archivos de `src/`.

@@ -1,21 +1,21 @@
 POLYMER SIMULATION SUMMARY
 
-N = 8
+N = 64
 ke = 100.0
 l0 = 1.0
 kBT = 1.0
 eta = 1.0
 h = 0.005
 
-<Ekin> experimental = 11.905608
-<Ekin> theoretical = 12.000000
-relative error = 0.787 %
+<Ekin> experimental = 94.548964
+<Ekin> theoretical = 96.000000
+relative error = 1.511 %
 
-<Eelastic> experimental = 3.644643
-<Eelastic> theoretical = 3.569307
-relative error = 2.111 %
+<Eelastic> experimental = 32.635983
+<Eelastic> theoretical = 32.123762
+relative error = 1.595 %
 
-<bond length> experimental = 1.019692
+<bond length> experimental = 1.023101
 <bond length> theoretical = 1.019802
-relative error = 0.011 %
-std bond length = 0.100127
+relative error = 0.323 %
+std bond length = 0.099131

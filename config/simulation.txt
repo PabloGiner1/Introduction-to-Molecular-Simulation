@@ -2,15 +2,16 @@ model=POLYMER
 
 algorithm=GJF
 
-N=8
+N=64
 ke=100.0
 l0=1.0
+force=1.0
 
 mass=1.0
 kBT=1.0
 eta=1.0
 
 h=0.005
-totalTime=1000.0
+totalTime=100000.0
 
-seed=random
+seed=random  

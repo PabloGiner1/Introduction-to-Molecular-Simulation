@@ -51,6 +51,7 @@ int main()
     polymerParameters.N = 8;
     polymerParameters.springConstant = 100.0;
     polymerParameters.equilibriumLength = 1.0;
+    polymerParameters.externalForce = 0.0;
 
     // Valores por defecto
     algorithm = EULER_MARUYAMA;
@@ -232,6 +233,9 @@ int main()
                     "force") == 0)
             {
                 modelParameters.externalForce =
+                    atof(
+                        value);
+                polymerParameters.externalForce =
                     atof(
                         value);
             }
@@ -454,6 +458,10 @@ int main()
         printf(
             "l0 = %g\n",
             polymerParameters.equilibriumLength);
+
+        printf(
+            "External force on last monomer (+x) = %g\n",
+            polymerParameters.externalForce);
 
         printf("\n");
 
