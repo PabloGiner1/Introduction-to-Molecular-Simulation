@@ -1,5 +1,4 @@
 model=POLYMER
-
 algorithm=GJF
 
 N=64
@@ -12,6 +11,13 @@ kBT=1.0
 eta=1.0
 
 h=0.005
+<<<<<<< HEAD
 totalTime=100000.0
+=======
+
+totalTime=10000.0
+minThermalizationTime=2000.0
+maxSavedPoints=10000
+>>>>>>> db4486726c9d57165a8a776e6a1407fcdccfa553
 
 seed=random  
