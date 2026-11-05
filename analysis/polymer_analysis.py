@@ -4,7 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-project_root = Path(__file__).resolve().parents[1]
+project_root = Path(
+    __file__
+).resolve().parents[1]
 
 
 parameters_file = (
@@ -40,6 +42,32 @@ figures_folder.mkdir(
 )
 
 
+# ===================================
+# Funciones auxiliares
+# ===================================
+
+def integrate(y, x):
+
+    if hasattr(
+        np,
+        "trapezoid"
+    ):
+
+        return np.trapezoid(
+            y,
+            x
+        )
+
+    return np.trapz(
+        y,
+        x
+    )
+
+
+# ===================================
+# Parámetros
+# ===================================
+
 parameters = {}
 
 
@@ -68,30 +96,40 @@ N = int(
     ]
 )
 
+
 ke = parameters[
     "ke"
 ]
+
 
 l0 = parameters[
     "l0"
 ]
 
+
 mass = parameters[
     "mass"
 ]
+
 
 gamma = parameters[
     "gamma"
 ]
 
+
 kBT = parameters[
     "kBT"
 ]
+
 
 dt = parameters[
     "dt"
 ]
 
+
+# ===================================
+# Datos
+# ===================================
 
 data = np.loadtxt(
     data_file,
@@ -161,9 +199,9 @@ coordinates = (
 )
 
 
-# ==============================
+# ===================================
 # Valores experimentales
-# ==============================
+# ===================================
 
 mean_kinetic = float(
     np.mean(
@@ -187,12 +225,14 @@ mean_total = float(
 )
 
 
-# ==============================
-# Valores teóricos
-# ==============================
+# ===================================
+# Teoría
+# ===================================
 
 # Energía cinética:
-# 3 grados de libertad por monómero
+#
+# <Ecin> = 3 N kBT / 2
+
 kinetic_theory = (
     1.5
     * N
@@ -201,12 +241,23 @@ kinetic_theory = (
 
 
 # Distribución radial de un enlace:
+#
 # P(l) ~ l^2 exp[-U(l)/kBT]
+#
+# U(l) = ke (l-l0)^2 / 2
+
+sigma = np.sqrt(
+    kBT
+    / ke
+)
+
+
 l_grid = np.linspace(
-    0.0,
-    l0 + 10.0 * np.sqrt(
-        kBT / ke
+    max(
+        0.0,
+        l0 - 6.0 * sigma
     ),
+    l0 + 6.0 * sigma,
     50000
 )
 
@@ -230,29 +281,33 @@ bond_weight = (
 )
 
 
-normalization = np.trapezoid(
+normalization = integrate(
     bond_weight,
     l_grid
 )
 
 
-bond_length_theory = float(
-    np.trapezoid(
-        l_grid
-        * bond_weight,
-        l_grid
-    )
+bond_probability_theory = (
+    bond_weight
     / normalization
 )
 
 
-elastic_per_bond_theory = float(
-    np.trapezoid(
-        bond_potential
-        * bond_weight,
+bond_length_theory = float(
+    integrate(
+        l_grid
+        * bond_probability_theory,
         l_grid
     )
-    / normalization
+)
+
+
+elastic_per_bond_theory = float(
+    integrate(
+        bond_potential
+        * bond_probability_theory,
+        l_grid
+    )
 )
 
 
@@ -262,9 +317,9 @@ elastic_theory = (
 )
 
 
-# ==============================
-# Errores
-# ==============================
+# ===================================
+# Errores relativos
+# ===================================
 
 kinetic_error = (
     abs(
@@ -286,9 +341,9 @@ elastic_error = (
 )
 
 
-# ==============================
+# ===================================
 # Longitudes de enlace
-# ==============================
+# ===================================
 
 bond_vectors = (
     coordinates[
@@ -334,9 +389,9 @@ bond_length_error = (
 )
 
 
-# ==============================
-# 1. Configuración 3D final
-# ==============================
+# ===================================
+# 1. Configuración final 3D
+# ===================================
 
 final_coordinates = (
     coordinates[
@@ -382,10 +437,9 @@ ax.plot(
         2
     ],
     marker="o",
+    linewidth=1.2,
     label=(
-        f"$N={N}$, "
-        f"$\\langle l\\rangle_{{exp}}="
-        f"{mean_bond_length:.4f}$"
+        f"$N={N}$"
     )
 )
 
@@ -394,9 +448,11 @@ ax.set_xlabel(
     "$x$"
 )
 
+
 ax.set_ylabel(
     "$y$"
 )
+
 
 ax.set_zlabel(
     "$z$"
@@ -405,7 +461,9 @@ ax.set_zlabel(
 
 ax.set_title(
     "Configuración final del polímero\n"
+    f"$N={N}$, "
     f"$k_e={ke:g}$, "
+    f"$l_0={l0:g}$, "
     f"$k_BT={kBT:g}$"
 )
 
@@ -464,12 +522,14 @@ ax.set_xlim(
     + max_range / 2
 )
 
+
 ax.set_ylim(
     midpoints[1]
     - max_range / 2,
     midpoints[1]
     + max_range / 2
 )
+
 
 ax.set_zlim(
     midpoints[2]
@@ -496,23 +556,22 @@ plt.savefig(
 plt.close()
 
 
-# ==============================
+# ===================================
 # 2. Energías instantáneas
-# ==============================
+# ===================================
 
 plt.figure(
-    figsize=(8, 5)
+    figsize=(9, 5.5)
 )
 
 
 plt.plot(
     time,
     kinetic,
-    alpha=0.5,
+    linewidth=0.7,
+    alpha=0.35,
     label=(
-        "$E_{cin}$ "
-        f"($\\langle E_{{cin}}\\rangle_{{exp}}"
-        f"={mean_kinetic:.3f}$)"
+        "$E_{cin}(t)$"
     )
 )
 
@@ -520,11 +579,10 @@ plt.plot(
 plt.plot(
     time,
     elastic,
-    alpha=0.5,
+    linewidth=0.7,
+    alpha=0.35,
     label=(
-        "$E_{el}$ "
-        f"($\\langle E_{{el}}\\rangle_{{exp}}"
-        f"={mean_elastic:.3f}$)"
+        "$E_{el}(t)$"
     )
 )
 
@@ -532,6 +590,7 @@ plt.plot(
 plt.axhline(
     kinetic_theory,
     linestyle="--",
+    linewidth=1.8,
     label=(
         r"$\langle E_{cin}\rangle_{teo}$"
         f" = {kinetic_theory:.3f}"
@@ -542,6 +601,7 @@ plt.axhline(
 plt.axhline(
     elastic_theory,
     linestyle=":",
+    linewidth=1.8,
     label=(
         r"$\langle E_{el}\rangle_{teo}$"
         f" = {elastic_theory:.3f}"
@@ -550,8 +610,9 @@ plt.axhline(
 
 
 plt.xlabel(
-    "Tiempo $t$"
+    "Tiempo de producción $t$"
 )
+
 
 plt.ylabel(
     "Energía"
@@ -559,7 +620,10 @@ plt.ylabel(
 
 
 plt.title(
-    "Energías del polímero"
+    "Energías instantáneas del polímero\n"
+    f"$N={N}$, "
+    f"$k_e={ke:g}$, "
+    f"$k_BT={kBT:g}$"
 )
 
 
@@ -568,7 +632,16 @@ plt.grid(
     alpha=0.3
 )
 
-plt.legend()
+
+plt.legend(
+    title=(
+        r"$\langle E_{cin}\rangle_{exp}$"
+        f" = {mean_kinetic:.3f}\n"
+        r"$\langle E_{el}\rangle_{exp}$"
+        f" = {mean_elastic:.3f}"
+    )
+)
+
 
 plt.tight_layout()
 
@@ -584,9 +657,9 @@ plt.savefig(
 plt.close()
 
 
-# ==============================
+# ===================================
 # 3. Convergencia de energías
-# ==============================
+# ===================================
 
 sample_count = (
     np.arange(
@@ -613,13 +686,14 @@ cumulative_elastic = (
 
 
 plt.figure(
-    figsize=(8, 5)
+    figsize=(9, 5.5)
 )
 
 
 plt.plot(
     time,
     cumulative_kinetic,
+    linewidth=1.4,
     label=(
         r"$\langle E_{cin}\rangle_{acum}$"
         f" → {mean_kinetic:.3f}"
@@ -630,6 +704,7 @@ plt.plot(
 plt.plot(
     time,
     cumulative_elastic,
+    linewidth=1.4,
     label=(
         r"$\langle E_{el}\rangle_{acum}$"
         f" → {mean_elastic:.3f}"
@@ -640,6 +715,7 @@ plt.plot(
 plt.axhline(
     kinetic_theory,
     linestyle="--",
+    linewidth=1.8,
     label=(
         r"$\langle E_{cin}\rangle_{teo}$"
         f" = {kinetic_theory:.3f}"
@@ -650,6 +726,7 @@ plt.axhline(
 plt.axhline(
     elastic_theory,
     linestyle=":",
+    linewidth=1.8,
     label=(
         r"$\langle E_{el}\rangle_{teo}$"
         f" = {elastic_theory:.3f}"
@@ -658,8 +735,9 @@ plt.axhline(
 
 
 plt.xlabel(
-    "Tiempo $t$"
+    "Tiempo de producción $t$"
 )
+
 
 plt.ylabel(
     "Energía media acumulada"
@@ -667,7 +745,10 @@ plt.ylabel(
 
 
 plt.title(
-    "Convergencia de las energías"
+    "Convergencia de las energías\n"
+    f"$N={N}$, "
+    f"$k_e={ke:g}$, "
+    f"$k_BT={kBT:g}$"
 )
 
 
@@ -676,7 +757,9 @@ plt.grid(
     alpha=0.3
 )
 
+
 plt.legend()
+
 
 plt.tight_layout()
 
@@ -692,12 +775,12 @@ plt.savefig(
 plt.close()
 
 
-# ==============================
-# 4. Longitudes de enlace
-# ==============================
+# ===================================
+# 4. Distribución de longitudes
+# ===================================
 
 plt.figure(
-    figsize=(8, 5)
+    figsize=(9, 5.5)
 )
 
 
@@ -705,14 +788,27 @@ plt.hist(
     bond_lengths.flatten(),
     bins=60,
     density=True,
-    alpha=0.7,
+    alpha=0.55,
     label="Simulación"
+)
+
+
+# Distribución teórica completa
+plt.plot(
+    l_grid,
+    bond_probability_theory,
+    linewidth=2.0,
+    label=(
+        r"Teoría "
+        r"$P(l)\propto l^2e^{-U(l)/k_BT}$"
+    )
 )
 
 
 plt.axvline(
     l0,
     linestyle="--",
+    linewidth=1.7,
     label=(
         f"$l_0={l0:g}$"
     )
@@ -722,6 +818,7 @@ plt.axvline(
 plt.axvline(
     bond_length_theory,
     linestyle="-.",
+    linewidth=1.7,
     label=(
         r"$\langle l\rangle_{teo}$"
         f" = {bond_length_theory:.4f}"
@@ -732,6 +829,7 @@ plt.axvline(
 plt.axvline(
     mean_bond_length,
     linestyle=":",
+    linewidth=2.0,
     label=(
         r"$\langle l\rangle_{exp}$"
         f" = {mean_bond_length:.4f}"
@@ -743,13 +841,18 @@ plt.xlabel(
     "Longitud de enlace $l$"
 )
 
+
 plt.ylabel(
     "Densidad de probabilidad"
 )
 
 
 plt.title(
-    "Distribución de longitudes de enlace"
+    "Distribución de longitudes de enlace\n"
+    f"$N={N}$, "
+    f"$k_e={ke:g}$, "
+    f"$l_0={l0:g}$, "
+    f"$k_BT={kBT:g}$"
 )
 
 
@@ -758,7 +861,9 @@ plt.grid(
     alpha=0.3
 )
 
+
 plt.legend()
+
 
 plt.tight_layout()
 
@@ -774,9 +879,9 @@ plt.savefig(
 plt.close()
 
 
-# ==============================
+# ===================================
 # Resumen
-# ==============================
+# ===================================
 
 summary_file = (
     project_root
@@ -805,10 +910,14 @@ summary_text = (
     "\n"
     f"<Ekin> experimental = {mean_kinetic:.6f}\n"
     f"<Ekin> theoretical = {kinetic_theory:.6f}\n"
+    f"<Ekin>/N experimental = {mean_kinetic/N:.6f}\n"
+    f"<Ekin>/N theoretical = {kinetic_theory/N:.6f}\n"
     f"relative error = {kinetic_error:.3f} %\n"
     "\n"
     f"<Eelastic> experimental = {mean_elastic:.6f}\n"
     f"<Eelastic> theoretical = {elastic_theory:.6f}\n"
+    f"<Eelastic>/N experimental = {mean_elastic/N:.6f}\n"
+    f"<Eelastic>/N theoretical = {elastic_theory/N:.6f}\n"
     f"relative error = {elastic_error:.3f} %\n"
     "\n"
     f"<bond length> experimental = "
@@ -855,15 +964,23 @@ print(
 )
 
 print(
-    f"  Experimental = {mean_kinetic:.4f}"
+    f"  Experimental = {mean_kinetic:.6f}"
 )
 
 print(
-    f"  Teorica      = {kinetic_theory:.4f}"
+    f"  Teorica      = {kinetic_theory:.6f}"
 )
 
 print(
-    f"  Error        = {kinetic_error:.2f} %"
+    f"  Experimental / N = {mean_kinetic/N:.6f}"
+)
+
+print(
+    f"  Teorica / N      = {kinetic_theory/N:.6f}"
+)
+
+print(
+    f"  Error = {kinetic_error:.3f} %"
 )
 
 print()
@@ -873,15 +990,23 @@ print(
 )
 
 print(
-    f"  Experimental = {mean_elastic:.4f}"
+    f"  Experimental = {mean_elastic:.6f}"
 )
 
 print(
-    f"  Teorica      = {elastic_theory:.4f}"
+    f"  Teorica      = {elastic_theory:.6f}"
 )
 
 print(
-    f"  Error        = {elastic_error:.2f} %"
+    f"  Experimental / N = {mean_elastic/N:.6f}"
+)
+
+print(
+    f"  Teorica / N      = {elastic_theory/N:.6f}"
+)
+
+print(
+    f"  Error = {elastic_error:.3f} %"
 )
 
 print()
@@ -891,19 +1016,19 @@ print(
 )
 
 print(
-    f"  Experimental = {mean_bond_length:.5f}"
+    f"  Experimental = {mean_bond_length:.6f}"
 )
 
 print(
-    f"  Teorica      = {bond_length_theory:.5f}"
+    f"  Teorica      = {bond_length_theory:.6f}"
 )
 
 print(
-    f"  Error        = {bond_length_error:.2f} %"
+    f"  Error        = {bond_length_error:.3f} %"
 )
 
 print(
-    f"  std(l)       = {std_bond_length:.5f}"
+    f"  std(l)       = {std_bond_length:.6f}"
 )
 
 print()

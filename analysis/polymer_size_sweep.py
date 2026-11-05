@@ -143,23 +143,22 @@ eta = 1.0
 dt = 0.005
 
 
-# Antes usábamos 1000.
-# Ahora aumentamos claramente
-# el tiempo de producción.
 total_time = 10000.0
 
 
-# También obligamos al polímero
-# a evolucionar bastante antes
-# de comenzar a guardar medidas.
 min_thermalization_time = 2000.0
 
 
 max_saved_points = 10000
 
 
+# Número de bloques empleados para
+# estimar las incertidumbres.
+number_of_blocks = 10
+
+
 # ===================================
-# Funciones
+# Funciones auxiliares
 # ===================================
 
 def parse_key_values(text):
@@ -193,10 +192,7 @@ def parse_key_values(text):
     return values
 
 
-def integrate(
-    y,
-    x
-):
+def integrate(y, x):
 
     if hasattr(
         np,
@@ -214,18 +210,105 @@ def integrate(
     )
 
 
+def block_standard_error(
+    values,
+    requested_blocks=10
+):
+
+    values = np.asarray(
+        values,
+        dtype=float
+    )
+
+
+    n_samples = len(
+        values
+    )
+
+
+    if n_samples < 4:
+
+        return (
+            np.nan,
+            1,
+            n_samples
+        )
+
+
+    actual_blocks = min(
+        requested_blocks,
+        max(
+            2,
+            n_samples // 50
+        )
+    )
+
+
+    block_size = (
+        n_samples
+        // actual_blocks
+    )
+
+
+    usable_samples = (
+        block_size
+        * actual_blocks
+    )
+
+
+    trimmed_values = (
+        values[
+            :usable_samples
+        ]
+    )
+
+
+    block_means = (
+        trimmed_values
+        .reshape(
+            actual_blocks,
+            block_size
+        )
+        .mean(
+            axis=1
+        )
+    )
+
+
+    standard_error = float(
+        np.std(
+            block_means,
+            ddof=1
+        )
+        / np.sqrt(
+            actual_blocks
+        )
+    )
+
+
+    return (
+        standard_error,
+        actual_blocks,
+        block_size
+    )
+
+
 # ===================================
 # Valores teóricos de un enlace
 # ===================================
 
+sigma = np.sqrt(
+    kBT
+    / ke
+)
+
+
 l_grid = np.linspace(
-    0.0,
-    l0
-    + 10.0
-    * np.sqrt(
-        kBT
-        / ke
+    max(
+        0.0,
+        l0 - 6.0 * sigma
     ),
+    l0 + 6.0 * sigma,
     50000
 )
 
@@ -255,23 +338,27 @@ bond_normalization = integrate(
 )
 
 
+bond_probability = (
+    bond_weight
+    / bond_normalization
+)
+
+
 bond_length_theory = float(
     integrate(
         l_grid
-        * bond_weight,
+        * bond_probability,
         l_grid
     )
-    / bond_normalization
 )
 
 
 elastic_per_bond_theory = float(
     integrate(
         bond_potential
-        * bond_weight,
+        * bond_probability,
         l_grid
     )
-    / bond_normalization
 )
 
 
@@ -340,17 +427,15 @@ try:
         )
 
 
-        simulation_result = (
-            subprocess.run(
-                [
-                    str(
-                        simulation_program
-                    )
-                ],
-                cwd=project_root,
-                capture_output=True,
-                text=True
-            )
+        simulation_result = subprocess.run(
+            [
+                str(
+                    simulation_program
+                )
+            ],
+            cwd=project_root,
+            capture_output=True,
+            text=True
         )
 
 
@@ -375,11 +460,9 @@ try:
             )
 
 
-        parameters = (
-            parse_key_values(
-                parameters_file
-                .read_text()
-            )
+        parameters = parse_key_values(
+            parameters_file
+            .read_text()
         )
 
 
@@ -447,9 +530,9 @@ try:
         )
 
 
-        # ==========================
+        # ===================================
         # Energías
-        # ==========================
+        # ===================================
 
         mean_kinetic = float(
             np.mean(
@@ -522,9 +605,9 @@ try:
         )
 
 
-        # ==========================
+        # ===================================
         # Longitudes de enlace
-        # ==========================
+        # ===================================
 
         bond_vectors = (
             coordinates[
@@ -546,6 +629,12 @@ try:
         )
 
 
+        bond_length_per_frame = np.mean(
+            bond_lengths,
+            axis=1
+        )
+
+
         mean_bond_length = float(
             np.mean(
                 bond_lengths
@@ -560,9 +649,43 @@ try:
         )
 
 
-        # ==========================
+        # ===================================
+        # Incertidumbres por bloques
+        # ===================================
+
+        (
+            kinetic_sem,
+            kinetic_blocks,
+            kinetic_block_size
+        ) = block_standard_error(
+            kinetic / N,
+            number_of_blocks
+        )
+
+
+        (
+            elastic_sem,
+            elastic_blocks,
+            elastic_block_size
+        ) = block_standard_error(
+            elastic / N,
+            number_of_blocks
+        )
+
+
+        (
+            bond_length_sem,
+            bond_blocks,
+            bond_block_size
+        ) = block_standard_error(
+            bond_length_per_frame,
+            number_of_blocks
+        )
+
+
+        # ===================================
         # Convergencia acumulada
-        # ==========================
+        # ===================================
 
         sample_count = (
             np.arange(
@@ -614,6 +737,9 @@ try:
             "kinetic_per_particle_theory":
                 kinetic_per_particle_theory,
 
+            "kinetic_per_particle_sem":
+                kinetic_sem,
+
             "mean_elastic":
                 mean_elastic,
 
@@ -629,6 +755,9 @@ try:
             "elastic_per_particle_theory":
                 elastic_per_particle_theory,
 
+            "elastic_per_particle_sem":
+                elastic_sem,
+
             "mean_bond_length":
                 mean_bond_length,
 
@@ -637,6 +766,15 @@ try:
 
             "bond_length_std":
                 bond_length_std,
+
+            "bond_length_sem":
+                bond_length_sem,
+
+            "number_of_blocks":
+                kinetic_blocks,
+
+            "block_size":
+                kinetic_block_size,
 
             "thermalization_time":
                 float(
@@ -663,8 +801,10 @@ try:
         })
 
 
-        # Conservamos también los
-        # datos brutos de cada N.
+        # ===================================
+        # Guardado de datos brutos
+        # ===================================
+
         case_folder = (
             raw_folder
             / f"N_{N}"
@@ -692,54 +832,55 @@ try:
 
 
         print(
-            "Energia cinetica:"
+            "Energia cinetica por particula:"
         )
 
         print(
-            f"  <Ecin>/N = "
-            f"{kinetic_per_particle:.5f}"
+            f"  exp = "
+            f"{kinetic_per_particle:.6f} "
+            f"+/- {kinetic_sem:.6f}"
         )
 
         print(
-            f"  Teoria   = "
-            f"{kinetic_per_particle_theory:.5f}"
-        )
-
-
-        print(
-            "Energia elastica:"
-        )
-
-        print(
-            f"  <Eel>/N = "
-            f"{elastic_per_particle:.5f}"
-        )
-
-        print(
-            f"  Teoria  = "
-            f"{elastic_per_particle_theory:.5f}"
+            f"  teo = "
+            f"{kinetic_per_particle_theory:.6f}"
         )
 
 
         print(
-            "Longitud de enlace:"
+            "Energia elastica por particula:"
         )
 
         print(
-            f"  <l> = "
-            f"{mean_bond_length:.5f}"
+            f"  exp = "
+            f"{elastic_per_particle:.6f} "
+            f"+/- {elastic_sem:.6f}"
         )
 
         print(
-            f"  Teoria = "
-            f"{bond_length_theory:.5f}"
+            f"  teo = "
+            f"{elastic_per_particle_theory:.6f}"
+        )
+
+
+        print(
+            "Longitud media de enlace:"
+        )
+
+        print(
+            f"  exp = "
+            f"{mean_bond_length:.6f} "
+            f"+/- {bond_length_sem:.6f}"
+        )
+
+        print(
+            f"  teo = "
+            f"{bond_length_theory:.6f}"
         )
 
 
 finally:
 
-    # Recuperamos la configuración
-    # original del usuario.
     config_file.write_text(
         original_config
     )
@@ -790,6 +931,11 @@ for result in results:
                 "kinetic_per_particle_theory"
             ],
 
+        "kinetic_per_particle_sem":
+            result[
+                "kinetic_per_particle_sem"
+            ],
+
         "mean_elastic":
             result[
                 "mean_elastic"
@@ -815,6 +961,11 @@ for result in results:
                 "elastic_per_particle_theory"
             ],
 
+        "elastic_per_particle_sem":
+            result[
+                "elastic_per_particle_sem"
+            ],
+
         "mean_bond_length":
             result[
                 "mean_bond_length"
@@ -828,6 +979,21 @@ for result in results:
         "bond_length_std":
             result[
                 "bond_length_std"
+            ],
+
+        "bond_length_sem":
+            result[
+                "bond_length_sem"
+            ],
+
+        "number_of_blocks":
+            result[
+                "number_of_blocks"
+            ],
+
+        "block_size":
+            result[
+                "block_size"
             ],
 
         "thermalization_time":
@@ -870,6 +1036,82 @@ with summary_file.open(
 
 
 # ===================================
+# Arrays para gráficas
+# ===================================
+
+N_plot = np.array([
+    result[
+        "N"
+    ]
+    for result in results
+])
+
+
+kinetic_per_particle = np.array([
+    result[
+        "kinetic_per_particle"
+    ]
+    for result in results
+])
+
+
+kinetic_per_particle_sem = np.array([
+    result[
+        "kinetic_per_particle_sem"
+    ]
+    for result in results
+])
+
+
+kinetic_per_particle_theory = np.array([
+    result[
+        "kinetic_per_particle_theory"
+    ]
+    for result in results
+])
+
+
+elastic_per_particle = np.array([
+    result[
+        "elastic_per_particle"
+    ]
+    for result in results
+])
+
+
+elastic_per_particle_sem = np.array([
+    result[
+        "elastic_per_particle_sem"
+    ]
+    for result in results
+])
+
+
+elastic_per_particle_theory = np.array([
+    result[
+        "elastic_per_particle_theory"
+    ]
+    for result in results
+])
+
+
+bond_length_mean = np.array([
+    result[
+        "mean_bond_length"
+    ]
+    for result in results
+])
+
+
+bond_length_sem = np.array([
+    result[
+        "bond_length_sem"
+    ]
+    for result in results
+])
+
+
+# ===================================
 # 1. Convergencia cinética / N
 # ===================================
 
@@ -887,9 +1129,10 @@ for result in results:
         result[
             "cumulative_kinetic"
         ],
+        linewidth=1.2,
         label=(
             f"$N={result['N']}$: "
-            f"exp={result['kinetic_per_particle']:.3f}"
+            f"{result['kinetic_per_particle']:.3f}"
         )
     )
 
@@ -897,8 +1140,9 @@ for result in results:
 plt.axhline(
     1.5 * kBT,
     linestyle="--",
+    linewidth=1.8,
     label=(
-        "Teoría: "
+        r"Teoría: "
         r"$\langle E_{cin}\rangle/N"
         r"=3k_BT/2"
         f"={1.5*kBT:.3f}$"
@@ -917,8 +1161,9 @@ plt.ylabel(
 
 
 plt.title(
-    "Convergencia de la energía cinética "
-    "por partícula"
+    "Convergencia de la energía cinética por partícula\n"
+    f"$k_e={ke:g}$, "
+    f"$k_BT={kBT:g}$"
 )
 
 
@@ -963,6 +1208,7 @@ for result in results:
         result[
             "cumulative_elastic"
         ],
+        linewidth=1.2,
         label=(
             f"$N={result['N']}$: "
             f"exp="
@@ -984,8 +1230,9 @@ plt.ylabel(
 
 
 plt.title(
-    "Convergencia de la energía elástica "
-    "por partícula"
+    "Convergencia de la energía elástica por partícula\n"
+    f"$k_e={ke:g}$, "
+    f"$k_BT={kBT:g}$"
 )
 
 
@@ -1013,87 +1260,59 @@ plt.close()
 
 
 # ===================================
-# Arrays para gráficas frente a N
-# ===================================
-
-N_plot = np.array([
-    result[
-        "N"
-    ]
-    for result in results
-])
-
-
-kinetic_per_particle = np.array([
-    result[
-        "kinetic_per_particle"
-    ]
-    for result in results
-])
-
-
-kinetic_per_particle_theory = np.array([
-    result[
-        "kinetic_per_particle_theory"
-    ]
-    for result in results
-])
-
-
-elastic_per_particle = np.array([
-    result[
-        "elastic_per_particle"
-    ]
-    for result in results
-])
-
-
-elastic_per_particle_theory = np.array([
-    result[
-        "elastic_per_particle_theory"
-    ]
-    for result in results
-])
-
-
-bond_length_mean = np.array([
-    result[
-        "mean_bond_length"
-    ]
-    for result in results
-])
-
-
-# ===================================
 # 3. Energías normalizadas vs N
 # ===================================
 
 plt.figure(
-    figsize=(8, 5)
+    figsize=(9, 5.5)
 )
 
 
-plt.plot(
+# PUNTOS EXPERIMENTALES:
+# NO se unen mediante líneas.
+
+plt.errorbar(
     N_plot,
     kinetic_per_particle,
-    marker="o",
-    label=r"Simulación $\langle E_{cin}\rangle/N$"
+    yerr=kinetic_per_particle_sem,
+    fmt="o",
+    linestyle="none",
+    markersize=7,
+    capsize=4,
+    label=(
+        r"Simulación "
+        r"$\langle E_{cin}\rangle/N$"
+    )
 )
 
 
-plt.plot(
-    N_plot,
-    kinetic_per_particle_theory,
-    linestyle="--",
-    label=r"Teoría $\langle E_{cin}\rangle/N$"
-)
-
-
-plt.plot(
+plt.errorbar(
     N_plot,
     elastic_per_particle,
-    marker="s",
-    label=r"Simulación $\langle E_{el}\rangle/N$"
+    yerr=elastic_per_particle_sem,
+    fmt="s",
+    linestyle="none",
+    markersize=7,
+    capsize=4,
+    label=(
+        r"Simulación "
+        r"$\langle E_{el}\rangle/N$"
+    )
+)
+
+
+# La teoría sí se representa mediante
+# líneas porque es una predicción continua.
+
+plt.axhline(
+    1.5 * kBT,
+    linestyle="--",
+    linewidth=1.8,
+    label=(
+        r"Teoría "
+        r"$\langle E_{cin}\rangle/N"
+        r"=3k_BT/2$"
+    )
 )
 
 
@@ -1101,7 +1320,11 @@ plt.plot(
     N_plot,
     elastic_per_particle_theory,
     linestyle="--",
-    label=r"Teoría $\langle E_{el}\rangle/N$"
+    linewidth=1.8,
+    label=(
+        r"Teoría "
+        r"$\langle E_{el}\rangle/N$"
+    )
 )
 
 
@@ -1116,9 +1339,9 @@ plt.ylabel(
 
 
 plt.title(
-    "Energías normalizadas "
-    "frente al tamaño del polímero\n"
+    "Energías normalizadas frente al tamaño del polímero\n"
     f"$k_e={ke:g}$, "
+    f"$l_0={l0:g}$, "
     f"$k_BT={kBT:g}$"
 )
 
@@ -1151,14 +1374,20 @@ plt.close()
 # ===================================
 
 plt.figure(
-    figsize=(8, 5)
+    figsize=(9, 5.5)
 )
 
 
-plt.plot(
+# Puntos experimentales independientes.
+
+plt.errorbar(
     N_plot,
     bond_length_mean,
-    marker="o",
+    yerr=bond_length_sem,
+    fmt="o",
+    linestyle="none",
+    markersize=7,
+    capsize=4,
     label=(
         r"Simulación "
         r"$\langle l\rangle$"
@@ -1169,6 +1398,7 @@ plt.plot(
 plt.axhline(
     bond_length_theory,
     linestyle="--",
+    linewidth=1.8,
     label=(
         r"Teoría "
         r"$\langle l\rangle$"
@@ -1180,6 +1410,7 @@ plt.axhline(
 plt.axhline(
     l0,
     linestyle=":",
+    linewidth=1.8,
     label=(
         f"$l_0={l0:g}$"
     )
@@ -1198,8 +1429,9 @@ plt.ylabel(
 
 
 plt.title(
-    "Longitud media de enlace "
-    "frente al tamaño del polímero"
+    "Longitud media de enlace frente al tamaño del polímero\n"
+    f"$k_e={ke:g}$, "
+    f"$k_BT={kBT:g}$"
 )
 
 
@@ -1278,23 +1510,22 @@ print(
 print()
 
 print(
-    "Valor teorico cinetico "
-    "por particula:"
+    "Teoria:"
 )
 
 print(
-    f"  {1.5*kBT:.6f}"
-)
-
-print()
-
-print(
-    "Valor teorico longitud "
-    "de enlace:"
+    f"  <Ecin>/N = "
+    f"{1.5*kBT:.6f}"
 )
 
 print(
-    f"  {bond_length_theory:.6f}"
+    f"  <U enlace> = "
+    f"{elastic_per_bond_theory:.6f}"
+)
+
+print(
+    f"  <l> = "
+    f"{bond_length_theory:.6f}"
 )
 
 print()
@@ -1302,6 +1533,7 @@ print()
 print(
     "Resultados:"
 )
+
 
 for result in results:
 
@@ -1317,7 +1549,9 @@ for result in results:
 
     print(
         f"    exp = "
-        f"{result['kinetic_per_particle']:.6f}"
+        f"{result['kinetic_per_particle']:.6f} "
+        f"+/- "
+        f"{result['kinetic_per_particle_sem']:.6f}"
     )
 
     print(
@@ -1331,7 +1565,9 @@ for result in results:
 
     print(
         f"    exp = "
-        f"{result['elastic_per_particle']:.6f}"
+        f"{result['elastic_per_particle']:.6f} "
+        f"+/- "
+        f"{result['elastic_per_particle_sem']:.6f}"
     )
 
     print(
@@ -1345,7 +1581,9 @@ for result in results:
 
     print(
         f"    exp = "
-        f"{result['mean_bond_length']:.6f}"
+        f"{result['mean_bond_length']:.6f} "
+        f"+/- "
+        f"{result['bond_length_sem']:.6f}"
     )
 
     print(
@@ -1354,7 +1592,7 @@ for result in results:
     )
 
     print(
-        "  t thermalization = "
+        "  t termalizacion = "
         f"{result['thermalization_time']:.3f}"
     )
 
