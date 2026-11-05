@@ -7,19 +7,19 @@ kBT = 1.0
 eta = 1.0
 h = 0.005
 
-<Ekin> experimental = 11.986970
+<Ekin> experimental = 11.982822
 <Ekin> theoretical = 12.000000
-<Ekin>/N experimental = 1.498371
+<Ekin>/N experimental = 1.497853
 <Ekin>/N theoretical = 1.500000
-relative error = 0.109 %
+relative error = 0.143 %
 
-<Eelastic> experimental = 3.485062
+<Eelastic> experimental = 3.611306
 <Eelastic> theoretical = 3.569307
-<Eelastic>/N experimental = 0.435633
+<Eelastic>/N experimental = 0.451413
 <Eelastic>/N theoretical = 0.446163
-relative error = 2.360 %
+relative error = 1.177 %
 
-<bond length> experimental = 1.020023
+<bond length> experimental = 1.020233
 <bond length> theoretical = 1.019802
-relative error = 0.022 %
-std bond length = 0.097757
+relative error = 0.042 %
+std bond length = 0.099542

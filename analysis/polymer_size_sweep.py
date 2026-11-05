@@ -152,8 +152,9 @@ min_thermalization_time = 2000.0
 max_saved_points = 10000
 
 
-# Número de bloques empleados para
-# estimar las incertidumbres.
+# Número de bloques para estimar
+# las incertidumbres.
+
 number_of_blocks = 10
 
 
@@ -304,11 +305,10 @@ sigma = np.sqrt(
 
 
 l_grid = np.linspace(
-    max(
-        0.0,
-        l0 - 6.0 * sigma
-    ),
-    l0 + 6.0 * sigma,
+    0.0,
+    l0
+    + 10.0
+    * sigma,
     50000
 )
 
@@ -427,15 +427,17 @@ try:
         )
 
 
-        simulation_result = subprocess.run(
-            [
-                str(
-                    simulation_program
-                )
-            ],
-            cwd=project_root,
-            capture_output=True,
-            text=True
+        simulation_result = (
+            subprocess.run(
+                [
+                    str(
+                        simulation_program
+                    )
+                ],
+                cwd=project_root,
+                capture_output=True,
+                text=True
+            )
         )
 
 
@@ -460,9 +462,11 @@ try:
             )
 
 
-        parameters = parse_key_values(
-            parameters_file
-            .read_text()
+        parameters = (
+            parse_key_values(
+                parameters_file
+                .read_text()
+            )
         )
 
 
@@ -479,7 +483,9 @@ try:
 
 
         if (
-            len(data) < 2
+            len(
+                data
+            ) < 2
             or not np.all(
                 np.isfinite(
                     data
@@ -523,7 +529,9 @@ try:
                 3:
             ]
             .reshape(
-                len(data),
+                len(
+                    data
+                ),
                 N,
                 3
             )
@@ -1063,14 +1071,6 @@ kinetic_per_particle_sem = np.array([
 ])
 
 
-kinetic_per_particle_theory = np.array([
-    result[
-        "kinetic_per_particle_theory"
-    ]
-    for result in results
-])
-
-
 elastic_per_particle = np.array([
     result[
         "elastic_per_particle"
@@ -1115,7 +1115,7 @@ bond_length_sem = np.array([
 # 1. Convergencia cinética / N
 # ===================================
 
-plt.figure(
+fig = plt.figure(
     figsize=(9, 6)
 )
 
@@ -1142,7 +1142,7 @@ plt.axhline(
     linestyle="--",
     linewidth=1.8,
     label=(
-        r"Teoría: "
+        "Teoría: "
         r"$\langle E_{cin}\rangle/N"
         r"=3k_BT/2"
         f"={1.5*kBT:.3f}$"
@@ -1161,7 +1161,8 @@ plt.ylabel(
 
 
 plt.title(
-    "Convergencia de la energía cinética por partícula\n"
+    "Convergencia de la energía cinética "
+    "por partícula\n"
     f"$k_e={ke:g}$, "
     f"$k_BT={kBT:g}$"
 )
@@ -1182,19 +1183,21 @@ plt.tight_layout()
 plt.savefig(
     figures_folder
     / "polymer_kinetic_per_particle_convergence.png",
-    dpi=300,
+    dpi=600,
     bbox_inches="tight"
 )
 
 
-plt.close()
+plt.close(
+    fig
+)
 
 
 # ===================================
 # 2. Convergencia elástica / N
 # ===================================
 
-plt.figure(
+fig = plt.figure(
     figsize=(9, 6)
 )
 
@@ -1230,7 +1233,8 @@ plt.ylabel(
 
 
 plt.title(
-    "Convergencia de la energía elástica por partícula\n"
+    "Convergencia de la energía elástica "
+    "por partícula\n"
     f"$k_e={ke:g}$, "
     f"$k_BT={kBT:g}$"
 )
@@ -1251,24 +1255,26 @@ plt.tight_layout()
 plt.savefig(
     figures_folder
     / "polymer_elastic_per_particle_convergence.png",
-    dpi=300,
+    dpi=600,
     bbox_inches="tight"
 )
 
 
-plt.close()
+plt.close(
+    fig
+)
 
 
 # ===================================
 # 3. Energías normalizadas vs N
 # ===================================
 
-plt.figure(
+fig = plt.figure(
     figsize=(9, 5.5)
 )
 
 
-# PUNTOS EXPERIMENTALES:
+# Puntos experimentales:
 # NO se unen mediante líneas.
 
 plt.errorbar(
@@ -1301,8 +1307,8 @@ plt.errorbar(
 )
 
 
-# La teoría sí se representa mediante
-# líneas porque es una predicción continua.
+# La teoría sí se representa
+# mediante líneas.
 
 plt.axhline(
     1.5 * kBT,
@@ -1339,7 +1345,8 @@ plt.ylabel(
 
 
 plt.title(
-    "Energías normalizadas frente al tamaño del polímero\n"
+    "Energías normalizadas frente "
+    "al tamaño del polímero\n"
     f"$k_e={ke:g}$, "
     f"$l_0={l0:g}$, "
     f"$k_BT={kBT:g}$"
@@ -1361,24 +1368,27 @@ plt.tight_layout()
 plt.savefig(
     figures_folder
     / "polymer_energy_per_particle_vs_N.png",
-    dpi=300,
+    dpi=600,
     bbox_inches="tight"
 )
 
 
-plt.close()
+plt.close(
+    fig
+)
 
 
 # ===================================
 # 4. Longitud de enlace vs N
 # ===================================
 
-plt.figure(
+fig = plt.figure(
     figsize=(9, 5.5)
 )
 
 
-# Puntos experimentales independientes.
+# Puntos experimentales:
+# NO se unen mediante líneas.
 
 plt.errorbar(
     N_plot,
@@ -1429,7 +1439,8 @@ plt.ylabel(
 
 
 plt.title(
-    "Longitud media de enlace frente al tamaño del polímero\n"
+    "Longitud media de enlace frente "
+    "al tamaño del polímero\n"
     f"$k_e={ke:g}$, "
     f"$k_BT={kBT:g}$"
 )
@@ -1450,12 +1461,14 @@ plt.tight_layout()
 plt.savefig(
     figures_folder
     / "polymer_bond_length_vs_N.png",
-    dpi=300,
+    dpi=600,
     bbox_inches="tight"
 )
 
 
-plt.close()
+plt.close(
+    fig
+)
 
 
 # ===================================
@@ -1499,7 +1512,8 @@ print(
 )
 
 print(
-    f"T produccion = {total_time}"
+    f"T produccion = "
+    f"{total_time}"
 )
 
 print(

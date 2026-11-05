@@ -3,6 +3,11 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
+from matplotlib.animation import (
+    FuncAnimation,
+    PillowWriter
+)
+
 
 project_root = Path(
     __file__
@@ -75,9 +80,18 @@ with parameters_file.open() as file:
 
     for line in file:
 
+        line = line.strip()
+
+        if not line:
+
+            continue
+
+        if "=" not in line:
+
+            continue
+
         name, value = (
-            line.strip()
-            .split(
+            line.split(
                 "=",
                 maxsplit=1
             )
@@ -226,7 +240,7 @@ mean_total = float(
 
 
 # ===================================
-# Teoría
+# Valores teóricos
 # ===================================
 
 # Energía cinética:
@@ -240,11 +254,13 @@ kinetic_theory = (
 )
 
 
-# Distribución radial de un enlace:
+# Para un enlace:
+#
+# U(l) = 1/2 ke (l-l0)^2
+#
+# En 3D:
 #
 # P(l) ~ l^2 exp[-U(l)/kBT]
-#
-# U(l) = ke (l-l0)^2 / 2
 
 sigma = np.sqrt(
     kBT
@@ -253,11 +269,10 @@ sigma = np.sqrt(
 
 
 l_grid = np.linspace(
-    max(
-        0.0,
-        l0 - 6.0 * sigma
-    ),
-    l0 + 6.0 * sigma,
+    0.0,
+    l0
+    + 10.0
+    * sigma,
     50000
 )
 
@@ -438,9 +453,7 @@ ax.plot(
     ],
     marker="o",
     linewidth=1.2,
-    label=(
-        f"$N={N}$"
-    )
+    label=f"$N={N}$"
 )
 
 
@@ -493,8 +506,10 @@ ranges = np.array([
 
 
 max_range = max(
-    np.max(
-        ranges
+    float(
+        np.max(
+            ranges
+        )
     ),
     1.0
 )
@@ -539,6 +554,15 @@ ax.set_zlim(
 )
 
 
+ax.set_box_aspect(
+    (
+        1,
+        1,
+        1
+    )
+)
+
+
 ax.legend()
 
 
@@ -548,19 +572,259 @@ plt.tight_layout()
 plt.savefig(
     figures_folder
     / "polymer_snapshot_3d.png",
-    dpi=300,
+    dpi=600,
     bbox_inches="tight"
 )
 
 
-plt.close()
+plt.close(
+    fig
+)
+
+
+# ===================================
+# 1b. Animación 3D del polímero
+# ===================================
+
+# Limitamos el número de fotogramas
+# para que el GIF no sea excesivamente
+# pesado.
+
+max_animation_frames = 200
+
+animation_fps = 20
+
+
+number_animation_frames = min(
+    max_animation_frames,
+    len(
+        coordinates
+    )
+)
+
+
+animation_indices = np.unique(
+    np.linspace(
+        0,
+        len(
+            coordinates
+        ) - 1,
+        number_animation_frames,
+        dtype=int
+    )
+)
+
+
+animation_coordinates = (
+    coordinates[
+        animation_indices
+    ]
+    .copy()
+)
+
+
+# Centramos cada configuración
+# en su propio centro de masas.
+#
+# Así eliminamos la traslación global
+# browniana y observamos principalmente
+# los cambios de forma del polímero.
+
+animation_centers = np.mean(
+    animation_coordinates,
+    axis=1,
+    keepdims=True
+)
+
+
+animation_coordinates -= (
+    animation_centers
+)
+
+
+# Límites fijos para toda la animación.
+#
+# Es importante que los ejes no cambien
+# de escala de un fotograma a otro.
+
+maximum_coordinate = float(
+    np.max(
+        np.abs(
+            animation_coordinates
+        )
+    )
+)
+
+
+axis_limit = max(
+    1.0,
+    1.10
+    * maximum_coordinate
+)
+
+
+fig_animation = plt.figure(
+    figsize=(7, 6)
+)
+
+
+ax_animation = (
+    fig_animation
+    .add_subplot(
+        111,
+        projection="3d"
+    )
+)
+
+
+polymer_line, = ax_animation.plot(
+    [],
+    [],
+    [],
+    marker="o",
+    linewidth=1.5
+)
+
+
+time_text = ax_animation.text2D(
+    0.03,
+    0.95,
+    "",
+    transform=ax_animation.transAxes
+)
+
+
+ax_animation.set_xlim(
+    -axis_limit,
+    axis_limit
+)
+
+
+ax_animation.set_ylim(
+    -axis_limit,
+    axis_limit
+)
+
+
+ax_animation.set_zlim(
+    -axis_limit,
+    axis_limit
+)
+
+
+ax_animation.set_box_aspect(
+    (
+        1,
+        1,
+        1
+    )
+)
+
+
+ax_animation.set_xlabel(
+    "$x$"
+)
+
+
+ax_animation.set_ylabel(
+    "$y$"
+)
+
+
+ax_animation.set_zlabel(
+    "$z$"
+)
+
+
+ax_animation.set_title(
+    "Dinámica del polímero\n"
+    f"$N={N}$, "
+    f"$k_e={ke:g}$, "
+    f"$k_BT={kBT:g}$"
+)
+
+
+def update_animation(frame):
+
+    current_coordinates = (
+        animation_coordinates[
+            frame
+        ]
+    )
+
+
+    polymer_line.set_data(
+        current_coordinates[
+            :,
+            0
+        ],
+        current_coordinates[
+            :,
+            1
+        ]
+    )
+
+
+    polymer_line.set_3d_properties(
+        current_coordinates[
+            :,
+            2
+        ]
+    )
+
+
+    original_index = (
+        animation_indices[
+            frame
+        ]
+    )
+
+
+    time_text.set_text(
+        f"$t={time[original_index]:.1f}$"
+    )
+
+
+    return (
+        polymer_line,
+        time_text
+    )
+
+
+polymer_animation = FuncAnimation(
+    fig_animation,
+    update_animation,
+    frames=len(
+        animation_indices
+    ),
+    interval=(
+        1000
+        / animation_fps
+    ),
+    blit=False
+)
+
+
+polymer_animation.save(
+    figures_folder
+    / "polymer_motion_3d.gif",
+    writer=PillowWriter(
+        fps=animation_fps
+    ),
+    dpi=120
+)
+
+
+plt.close(
+    fig_animation
+)
 
 
 # ===================================
 # 2. Energías instantáneas
 # ===================================
 
-plt.figure(
+fig = plt.figure(
     figsize=(9, 5.5)
 )
 
@@ -570,9 +834,7 @@ plt.plot(
     kinetic,
     linewidth=0.7,
     alpha=0.35,
-    label=(
-        "$E_{cin}(t)$"
-    )
+    label="$E_{cin}(t)$"
 )
 
 
@@ -581,9 +843,7 @@ plt.plot(
     elastic,
     linewidth=0.7,
     alpha=0.35,
-    label=(
-        "$E_{el}(t)$"
-    )
+    label="$E_{el}(t)$"
 )
 
 
@@ -654,7 +914,9 @@ plt.savefig(
 )
 
 
-plt.close()
+plt.close(
+    fig
+)
 
 
 # ===================================
@@ -663,7 +925,9 @@ plt.close()
 
 sample_count = (
     np.arange(
-        len(time)
+        len(
+            time
+        )
     )
     + 1
 )
@@ -685,7 +949,7 @@ cumulative_elastic = (
 )
 
 
-plt.figure(
+fig = plt.figure(
     figsize=(9, 5.5)
 )
 
@@ -767,19 +1031,21 @@ plt.tight_layout()
 plt.savefig(
     figures_folder
     / "polymer_energy_convergence.png",
-    dpi=300,
+    dpi=600,
     bbox_inches="tight"
 )
 
 
-plt.close()
+plt.close(
+    fig
+)
 
 
 # ===================================
 # 4. Distribución de longitudes
 # ===================================
 
-plt.figure(
+fig = plt.figure(
     figsize=(9, 5.5)
 )
 
@@ -793,14 +1059,14 @@ plt.hist(
 )
 
 
-# Distribución teórica completa
 plt.plot(
     l_grid,
     bond_probability_theory,
     linewidth=2.0,
     label=(
         r"Teoría "
-        r"$P(l)\propto l^2e^{-U(l)/k_BT}$"
+        r"$P(l)\propto "
+        r"l^2e^{-U(l)/k_BT}$"
     )
 )
 
@@ -871,12 +1137,14 @@ plt.tight_layout()
 plt.savefig(
     figures_folder
     / "polymer_bond_lengths.png",
-    dpi=300,
+    dpi=600,
     bbox_inches="tight"
 )
 
 
-plt.close()
+plt.close(
+    fig
+)
 
 
 # ===================================
@@ -908,24 +1176,36 @@ summary_text = (
     f"eta = {gamma}\n"
     f"h = {dt}\n"
     "\n"
-    f"<Ekin> experimental = {mean_kinetic:.6f}\n"
-    f"<Ekin> theoretical = {kinetic_theory:.6f}\n"
-    f"<Ekin>/N experimental = {mean_kinetic/N:.6f}\n"
-    f"<Ekin>/N theoretical = {kinetic_theory/N:.6f}\n"
-    f"relative error = {kinetic_error:.3f} %\n"
+    f"<Ekin> experimental = "
+    f"{mean_kinetic:.6f}\n"
+    f"<Ekin> theoretical = "
+    f"{kinetic_theory:.6f}\n"
+    f"<Ekin>/N experimental = "
+    f"{mean_kinetic/N:.6f}\n"
+    f"<Ekin>/N theoretical = "
+    f"{kinetic_theory/N:.6f}\n"
+    f"relative error = "
+    f"{kinetic_error:.3f} %\n"
     "\n"
-    f"<Eelastic> experimental = {mean_elastic:.6f}\n"
-    f"<Eelastic> theoretical = {elastic_theory:.6f}\n"
-    f"<Eelastic>/N experimental = {mean_elastic/N:.6f}\n"
-    f"<Eelastic>/N theoretical = {elastic_theory/N:.6f}\n"
-    f"relative error = {elastic_error:.3f} %\n"
+    f"<Eelastic> experimental = "
+    f"{mean_elastic:.6f}\n"
+    f"<Eelastic> theoretical = "
+    f"{elastic_theory:.6f}\n"
+    f"<Eelastic>/N experimental = "
+    f"{mean_elastic/N:.6f}\n"
+    f"<Eelastic>/N theoretical = "
+    f"{elastic_theory/N:.6f}\n"
+    f"relative error = "
+    f"{elastic_error:.3f} %\n"
     "\n"
     f"<bond length> experimental = "
     f"{mean_bond_length:.6f}\n"
     f"<bond length> theoretical = "
     f"{bond_length_theory:.6f}\n"
-    f"relative error = {bond_length_error:.3f} %\n"
-    f"std bond length = {std_bond_length:.6f}\n"
+    f"relative error = "
+    f"{bond_length_error:.3f} %\n"
+    f"std bond length = "
+    f"{std_bond_length:.6f}\n"
 )
 
 
@@ -934,10 +1214,23 @@ summary_file.write_text(
 )
 
 
+# ===================================
+# Información por terminal
+# ===================================
+
 print()
-print("===================================")
-print("POLYMER RESULTS")
-print("===================================")
+
+print(
+    "==================================="
+)
+
+print(
+    "POLYMER RESULTS"
+)
+
+print(
+    "==================================="
+)
 
 print()
 
@@ -964,23 +1257,28 @@ print(
 )
 
 print(
-    f"  Experimental = {mean_kinetic:.6f}"
+    f"  Experimental = "
+    f"{mean_kinetic:.6f}"
 )
 
 print(
-    f"  Teorica      = {kinetic_theory:.6f}"
+    f"  Teorica      = "
+    f"{kinetic_theory:.6f}"
 )
 
 print(
-    f"  Experimental / N = {mean_kinetic/N:.6f}"
+    f"  Experimental / N = "
+    f"{mean_kinetic/N:.6f}"
 )
 
 print(
-    f"  Teorica / N      = {kinetic_theory/N:.6f}"
+    f"  Teorica / N      = "
+    f"{kinetic_theory/N:.6f}"
 )
 
 print(
-    f"  Error = {kinetic_error:.3f} %"
+    f"  Error = "
+    f"{kinetic_error:.3f} %"
 )
 
 print()
@@ -990,23 +1288,28 @@ print(
 )
 
 print(
-    f"  Experimental = {mean_elastic:.6f}"
+    f"  Experimental = "
+    f"{mean_elastic:.6f}"
 )
 
 print(
-    f"  Teorica      = {elastic_theory:.6f}"
+    f"  Teorica      = "
+    f"{elastic_theory:.6f}"
 )
 
 print(
-    f"  Experimental / N = {mean_elastic/N:.6f}"
+    f"  Experimental / N = "
+    f"{mean_elastic/N:.6f}"
 )
 
 print(
-    f"  Teorica / N      = {elastic_theory/N:.6f}"
+    f"  Teorica / N      = "
+    f"{elastic_theory/N:.6f}"
 )
 
 print(
-    f"  Error = {elastic_error:.3f} %"
+    f"  Error = "
+    f"{elastic_error:.3f} %"
 )
 
 print()
@@ -1016,25 +1319,40 @@ print(
 )
 
 print(
-    f"  Experimental = {mean_bond_length:.6f}"
+    f"  Experimental = "
+    f"{mean_bond_length:.6f}"
 )
 
 print(
-    f"  Teorica      = {bond_length_theory:.6f}"
+    f"  Teorica      = "
+    f"{bond_length_theory:.6f}"
 )
 
 print(
-    f"  Error        = {bond_length_error:.3f} %"
+    f"  Error        = "
+    f"{bond_length_error:.3f} %"
 )
 
 print(
-    f"  std(l)       = {std_bond_length:.6f}"
+    f"  std(l)       = "
+    f"{std_bond_length:.6f}"
 )
 
 print()
 
 print(
-    "Figures saved in:"
+    "GIF:"
+)
+
+print(
+    figures_folder
+    / "polymer_motion_3d.gif"
+)
+
+print()
+
+print(
+    "Figuras guardadas en:"
 )
 
 print(
