@@ -251,11 +251,12 @@ mean_total = float(
 
 # Energía cinética:
 #
-# <Ecin> = 3 N kBT / 2
+# <Ecin> = 3 N_libres kBT / 2
 
+free_monomers = N - int(parameters.get("firstEnd", "fixed") == "fixed")
 kinetic_theory = (
     1.5
-    * N
+    * free_monomers
     * kBT
 )
 
@@ -610,7 +611,9 @@ number_animation_frames = min(
 
 animation_indices = np.unique(
     np.linspace(
-        0,
+        len(
+            coordinates
+        ) - max_animation_frames,
         len(
             coordinates
         ) - 1,
@@ -659,20 +662,24 @@ animation_coordinates = (
 # Conservamos las coordenadas del CSV para que
 # el extremo fijo permanezca visualmente en el origen. (mejor para representar el extremo fijo)
 
-maximum_coordinate = float(
-    np.max(
-        np.abs(
-            animation_coordinates
-        )
-    )
+coordinate_min = np.min(
+    animation_coordinates,
+    axis=(0, 1)
 )
 
-
-axis_limit = max(
-    1.0,
-    1.10
-    * maximum_coordinate
+coordinate_max = np.max(
+    animation_coordinates,
+    axis=(0, 1)
 )
+
+coordinate_span = np.maximum(
+    coordinate_max - coordinate_min,
+    1.0
+)
+
+axis_padding = 0.05 * coordinate_span
+axis_min = coordinate_min - axis_padding
+axis_max = coordinate_max + axis_padding
 
 
 fig_animation = plt.figure(
@@ -693,7 +700,7 @@ polymer_line, = ax_animation.plot(
     [],
     [],
     [],
-    marker="o",
+    marker=".",
     linewidth=1.5
 )
 
@@ -707,31 +714,26 @@ time_text = ax_animation.text2D(
 
 
 ax_animation.set_xlim(
-    -axis_limit,
-    axis_limit
+    axis_min[0],
+    axis_max[0]
 )
 
 
 ax_animation.set_ylim(
-    -axis_limit,
-    axis_limit
+    axis_min[1],
+    axis_max[1]
 )
 
 
 ax_animation.set_zlim(
-    -axis_limit,
-    axis_limit
+    axis_min[2],
+    axis_max[2]
 )
 
 
 ax_animation.set_box_aspect(
-    (
-        1,
-        1,
-        1
-    )
+    (1,1,1)
 )
-
 
 ax_animation.set_xlabel(
     "$x$"

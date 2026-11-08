@@ -370,6 +370,19 @@ original_config = (
     config_file.read_text()
 )
 
+original_config_values = parse_key_values(
+    original_config
+)
+first_end = original_config_values.get(
+    "firstEnd"
+)
+
+if first_end not in {"fixed", "free"}:
+    raise RuntimeError(
+        "El parámetro firstEnd en config/simulation.txt "
+        "debe ser 'fixed' o 'free'."
+    )
+
 
 base_seed = secrets.randbelow(
     (2 ** 32 - 1)
@@ -418,6 +431,7 @@ try:
             f"kBT={kBT:.12g}\n"
             f"eta={eta:.12g}\n"
             f"h={dt:.12g}\n"
+            f"firstEnd={first_end}\n"
             f"totalTime={total_time:.12g}\n"
             f"minThermalizationTime="
             f"{min_thermalization_time:.12g}\n"
@@ -558,7 +572,7 @@ try:
 
         kinetic_theory = (
             1.5
-            * N
+            * (N - int(first_end == "fixed"))
             * kBT
         )
 
@@ -1070,6 +1084,13 @@ kinetic_per_particle_sem = np.array([
     for result in results
 ])
 
+kinetic_per_particle_theory = np.array([
+    result[
+        "kinetic_per_particle_theory"
+    ]
+    for result in results
+])
+
 
 elastic_per_particle = np.array([
     result[
@@ -1122,7 +1143,7 @@ fig = plt.figure(
 
 for result in results:
 
-    plt.plot(
+    kinetic_line, = plt.plot(
         result[
             "time"
         ],
@@ -1132,22 +1153,20 @@ for result in results:
         linewidth=1.2,
         label=(
             f"$N={result['N']}$: "
-            f"{result['kinetic_per_particle']:.3f}"
+            f"exp={result['kinetic_per_particle']:.3f}, "
+            f"teo={result['kinetic_per_particle_theory']:.3f}"
         )
     )
 
-
-plt.axhline(
-    1.5 * kBT,
-    linestyle="--",
-    linewidth=1.8,
-    label=(
-        "Teoría: "
-        r"$\langle E_{cin}\rangle/N"
-        r"=3k_BT/2"
-        f"={1.5*kBT:.3f}$"
+    plt.axhline(
+        result[
+            "kinetic_per_particle_theory"
+        ],
+        color=kinetic_line.get_color(),
+        linestyle="--",
+        linewidth=0.9,
+        alpha=0.7
     )
-)
 
 
 plt.xlabel(
@@ -1310,14 +1329,16 @@ plt.errorbar(
 # La teoría sí se representa
 # mediante líneas.
 
-plt.axhline(
-    1.5 * kBT,
+plt.plot(
+    N_plot,
+    kinetic_per_particle_theory,
     linestyle="--",
     linewidth=1.8,
     label=(
         r"Teoría "
         r"$\langle E_{cin}\rangle/N"
-        r"=3k_BT/2$"
+        r"=\frac{3}{2}k_BT\frac{N-n_f}{N},\ "
+        rf"n_f={int(first_end == 'fixed')}$"
     )
 )
 
@@ -1529,7 +1550,8 @@ print(
 
 print(
     f"  <Ecin>/N = "
-    f"{1.5*kBT:.6f}"
+    f"3kBT(N-{int(first_end == 'fixed')})/(2N), "
+    f"firstEnd={first_end}"
 )
 
 print(

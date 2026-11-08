@@ -140,9 +140,10 @@ double polymerElasticEnergy(
 
         extension =
             distance - polymer.equilibriumLength;
-
+        
         energy +=
-            0.5 * polymer.springConstant * extension * extension;
+            0.5 * polymer.springConstant * extension * extension; // Energía elástica del resorte (Armonico)
+
     }
 
     return energy;
