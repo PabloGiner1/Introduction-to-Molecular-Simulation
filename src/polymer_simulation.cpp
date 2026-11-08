@@ -167,7 +167,7 @@ void runPolymerSimulation(
             thermalizationStep++;
 
             for (
-                int i = 1;
+                int i = polymer.firstEndFixed ? 1 : 0;
                 i < polymer.N;
                 i++)
             {
@@ -192,7 +192,8 @@ void runPolymerSimulation(
         }
 
         int samples =
-            POLYMER_WINDOW * (polymer.N - 1) * 3;
+            POLYMER_WINDOW *
+            (polymer.N - (polymer.firstEndFixed ? 1 : 0)) * 3;
 
         velocityMean =
             velocitySum / samples;
@@ -396,6 +397,11 @@ void runPolymerSimulation(
             parametersFile,
             "force=%lf\n",
             polymer.externalForce);
+
+        fprintf(
+            parametersFile,
+            "firstEnd=%s\n",
+            polymer.firstEndFixed ? "fixed" : "free");
 
         fprintf(
             parametersFile,

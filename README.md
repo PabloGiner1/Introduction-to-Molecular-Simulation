@@ -79,6 +79,19 @@ inicial y el parámetro `force` aplica una fuerza constante en dirección `+x`
 sobre el último monómero. Se puede ajustar en `config/simulation.txt`; por
 ejemplo, `force=1.0`. El valor cero desactiva la fuerza.
 
+El extremo inicial se configura con `firstEnd=fixed` o `firstEnd=free`.
+`fixed` mantiene inmóvil el primer monómero (opción predeterminada); `free`
+permite que se mueva bajo las fuerzas elásticas y térmicas. La fuerza externa
+continúa aplicada al último monómero en ambos modos.
+
+La tarea de VS Code `Polimero: Barrido fuerza y distancia extremo a extremo`
+ejecuta 21 simulaciones con fuerzas entre 0 y 100. Para cada una mide al final
+de la simulación la proyección de la distancia entre el primer y el último
+monómero sobre `+x`, y genera la tabla
+`results/polymer/force_sweep/tables/polymer_force_sweep.csv` y la gráfica
+`results/polymer/force_sweep/figures/polymer_end_to_end_vs_force.png`. La tarea
+restaura `config/simulation.txt` al terminar.
+
 ## Carpeta `include/`
 
 Contiene las cabeceras `.hpp` correspondientes a los archivos de `src/`.

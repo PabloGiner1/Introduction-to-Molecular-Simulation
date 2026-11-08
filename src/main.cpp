@@ -52,6 +52,7 @@ int main()
     polymerParameters.springConstant = 100.0;
     polymerParameters.equilibriumLength = 1.0;
     polymerParameters.externalForce = 0.0;
+    polymerParameters.firstEndFixed = true;
 
     // Valores por defecto
     algorithm = EULER_MARUYAMA;
@@ -238,6 +239,39 @@ int main()
                 polymerParameters.externalForce =
                     atof(
                         value);
+            }
+
+            else if (
+                strcmp(
+                    name,
+                    "firstEnd") == 0)
+            {
+                if (
+                    strcmp(
+                        value,
+                        "fixed") == 0)
+                {
+                    polymerParameters.firstEndFixed = true;
+                }
+
+                else if (
+                    strcmp(
+                        value,
+                        "free") == 0)
+                {
+                    polymerParameters.firstEndFixed = false;
+                }
+
+                else
+                {
+                    printf(
+                        "Error: firstEnd must be fixed or free\n");
+
+                    fclose(
+                        configFile);
+
+                    return 1;
+                }
             }
 
             else if (
@@ -462,6 +496,10 @@ int main()
         printf(
             "External force on last monomer (+x) = %g\n",
             polymerParameters.externalForce);
+
+        printf(
+            "First end = %s\n",
+            polymerParameters.firstEndFixed ? "fixed" : "free");
 
         printf("\n");
 

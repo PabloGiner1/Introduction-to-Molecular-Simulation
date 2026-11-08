@@ -209,7 +209,7 @@ void polymerGJFStep(
     // Nuevas posiciones
     for (int i = 0; i < polymer.N; i++)
     {
-        if (i == 0)
+        if (i == 0 && polymer.firstEndFixed)
         {
             xNew[i] = x[i];
             yNew[i] = y[i];
@@ -252,7 +252,7 @@ void polymerGJFStep(
     // Nuevas velocidades
     for (int i = 0; i < polymer.N; i++)
     {
-        if (i == 0)
+        if (i == 0 && polymer.firstEndFixed)
         {
             vx[i] = 0.0;
             vy[i] = 0.0;

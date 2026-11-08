@@ -267,6 +267,25 @@
             "problemMatcher": []
         },
         {
+            "label": "Polimero: Barrido fuerza y distancia extremo a extremo",
+            "type": "process",
+            "command": "${command:python.interpreterPath}",
+            "windows": {
+                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+            },
+            "args": [
+                "${workspaceFolder}/analysis/polymer_force_sweep.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": [
+                "General: Compilar TFIII"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
             "label": "Aleatorios: Compilar test",
             "type": "shell",
             "command": "clang++",

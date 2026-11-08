@@ -99,8 +99,10 @@ with parameters_file.open() as file:
 
         parameters[
             name
-        ] = float(
+        ] = (
             value
+            if name == "firstEnd"
+            else float(value)
         )
 
 
@@ -118,6 +120,10 @@ ke = parameters[
 
 l0 = parameters[
     "l0"
+]
+
+force = parameters[
+    "force"
 ]
 
 
@@ -478,6 +484,7 @@ ax.set_title(
     f"$k_e={ke:g}$, "
     f"$l_0={l0:g}$, "
     f"$k_BT={kBT:g}$"
+    f"$Fuerza={force:g}$"
 )
 
 
@@ -563,8 +570,6 @@ ax.set_box_aspect(
 )
 
 
-ax.legend()
-
 
 plt.tight_layout()
 
@@ -615,6 +620,7 @@ animation_indices = np.unique(
 )
 
 
+
 animation_coordinates = (
     coordinates[
         animation_indices
@@ -622,30 +628,36 @@ animation_coordinates = (
     .copy()
 )
 
+# Para poner el centro de masas en el origen:
 
-# Centramos cada configuración
-# en su propio centro de masas.
-#
-# Así eliminamos la traslación global
-# browniana y observamos principalmente
-# los cambios de forma del polímero.
+# # Centramos cada configuración
+# # en su propio centro de masas.
+# #
+# # Así eliminamos la traslación global
+# # browniana y observamos principalmente
+# # los cambios de forma del polímero.
 
-animation_centers = np.mean(
-    animation_coordinates,
-    axis=1,
-    keepdims=True
-)
+# animation_centers = np.mean(
+#     animation_coordinates,
+#     axis=1,
+#     keepdims=True
+# )
 
 
-animation_coordinates -= (
-    animation_centers
-)
-
+# animation_coordinates -= (
+#     animation_centers
+# )
 
 # Límites fijos para toda la animación.
 #
 # Es importante que los ejes no cambien
 # de escala de un fotograma a otro.
+
+
+
+
+# Conservamos las coordenadas del CSV para que
+# el extremo fijo permanezca visualmente en el origen. (mejor para representar el extremo fijo)
 
 maximum_coordinate = float(
     np.max(
@@ -740,7 +752,8 @@ ax_animation.set_title(
     "Dinámica del polímero\n"
     f"$N={N}$, "
     f"$k_e={ke:g}$, "
-    f"$k_BT={kBT:g}$"
+    f"$k_BT={kBT:g}$, "
+    f"F={force:g}"
 )
 
 
@@ -884,6 +897,7 @@ plt.title(
     f"$N={N}$, "
     f"$k_e={ke:g}$, "
     f"$k_BT={kBT:g}$"
+    f"$F={force:g}$"
 )
 
 
@@ -1012,7 +1026,8 @@ plt.title(
     "Convergencia de las energías\n"
     f"$N={N}$, "
     f"$k_e={ke:g}$, "
-    f"$k_BT={kBT:g}$"
+    f"$k_BT={kBT:g}, $"
+    f"$F={force:g}, $"
 )
 
 
@@ -1022,7 +1037,9 @@ plt.grid(
 )
 
 
-plt.legend()
+plt.legend(
+    title=f"$F={force:g}$"
+)
 
 
 plt.tight_layout()
@@ -1118,7 +1135,8 @@ plt.title(
     f"$N={N}$, "
     f"$k_e={ke:g}$, "
     f"$l_0={l0:g}$, "
-    f"$k_BT={kBT:g}$"
+    f"$k_BT={kBT:g}$, "
+    f"$F={force:g}$"
 )
 
 
@@ -1127,8 +1145,6 @@ plt.grid(
     alpha=0.3
 )
 
-
-plt.legend()
 
 
 plt.tight_layout()
