@@ -1,4 +1,4 @@
-model=POLYMER
+model=DOUBLE_WELL
 
 algorithm=GJF
 

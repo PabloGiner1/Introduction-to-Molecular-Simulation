@@ -12,8 +12,10 @@ __pycache__/
 *.pyc
 
 # JSON
-.json
+tasks.json
+launch.json 
 
+.vscode/
 
 # macOS
 .DS_Store

@@ -4,9 +4,9 @@
         {
             "label": "Preparar carpetas",
             "type": "process",
-            "command": "${command:python.interpreterPath}",
+            "command": "${env:USERPROFILE}\\anaconda3\\python.exe",
             "windows": {
-                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+                "command": "${env:USERPROFILE}\\anaconda3\\python.exe"
             },
             "args": [
                 "-c",
@@ -86,9 +86,9 @@
         {
             "label": "Analizar resultados",
             "type": "process",
-            "command": "${command:python.interpreterPath}",
+            "command": "${env:USERPROFILE}\\anaconda3\\python.exe",
             "windows": {
-                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+                "command": "${env:USERPROFILE}\\anaconda3\\python.exe"
             },
             "args": [
                 "${workspaceFolder}/analysis/harmonic_analysis.py"
@@ -111,9 +111,9 @@
         {
             "label": "Estudio convergencia temporal",
             "type": "process",
-            "command": "${command:python.interpreterPath}",
+            "command": "${env:USERPROFILE}\\anaconda3\\python.exe",
             "windows": {
-                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+                "command": "${env:USERPROFILE}\\anaconda3\\python.exe"
             },
             "args": [
                 "${workspaceFolder}/analysis/harmonic_sweep.py"
@@ -130,9 +130,9 @@
         {
             "label": "Estudio de algoritmos",
             "type": "process",
-            "command": "${command:python.interpreterPath}",
+            "command": "${env:USERPROFILE}\\anaconda3\\python.exe",
             "windows": {
-                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+                "command": "${env:USERPROFILE}\\anaconda3\\python.exe"
             },
             "args": [
                 "${workspaceFolder}/analysis/harmonic_algorithm_sweep.py"
@@ -149,7 +149,7 @@
         {
             "label": "Estudio pozo doble: A y eta",
             "type": "process",
-            "command": "C:\\Users\\hugos\\anaconda3\\python.exe",
+            "command": "${env:USERPROFILE}\\anaconda3\\python.exe",
             "args": [
                 "${workspaceFolder}/analysis/double_well_parameter_sweep.py"
             ],
@@ -165,7 +165,7 @@
         {
             "label": "Barrido detallado pozo doble: A, eta y x0",
             "type": "process",
-            "command": "${command:python.interpreterPath}",
+            "command": "${env:USERPROFILE}\\anaconda3\\python.exe",
             "args": [
                 "${workspaceFolder}/analysis/parameters_sweep.py"
             ],
@@ -181,9 +181,9 @@
         {
             "label": "Barrido fuerza pozo doble",
             "type": "process",
-            "command": "${command:python.interpreterPath}",
+            "command": "${env:USERPROFILE}\\anaconda3\\python.exe",
             "windows": {
-                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+                "command": "${env:USERPROFILE}\\anaconda3\\python.exe"
             },
             "args": [
                 "${workspaceFolder}/analysis/force_sweep.py"
@@ -200,9 +200,9 @@
         {
             "label": "Analizar polimero",
             "type": "process",
-            "command": "${command:python.interpreterPath}",
+            "command": "${env:USERPROFILE}\\anaconda3\\python.exe",
             "windows": {
-                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+                "command": "${env:USERPROFILE}\\anaconda3\\python.exe"
             },
             "args": [
                 "${workspaceFolder}/analysis/polymer_analysis.py"
@@ -275,9 +275,10 @@
         {
             "label": "Analizar random",
             "type": "process",
-            "command": "${command:python.interpreterPath}",
+            "command": "${env:USERPROFILE}\\anaconda3\\python.exe",
             "windows": {
-                "command": "C:\\Users\\hugos\\anaconda3\\python.exe"
+                "command": "${env:USERPROFILE}\\anaconda3\\python.exe"
+                
             },
             "args": [
                 "${workspaceFolder}/analysis/random_analysis.py"

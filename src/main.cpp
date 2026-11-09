@@ -30,7 +30,7 @@ int main()
     FILE *configFile;
 
     // Modelo por defecto
-    model = DOUBLE_WELL;
+    model = HARMONIC;
 
     // Parámetros generales
     simulation.mass = 1.0;
