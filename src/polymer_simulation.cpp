@@ -37,8 +37,11 @@ void runPolymerSimulation(
     double time;
 
     int numberOfSteps;
+
     int maxSavedPoints;
     int saveEvery;
+
+    int minThermalizationSteps;
 
     int thermalizationStep;
     int windowStep;
@@ -51,10 +54,11 @@ void runPolymerSimulation(
     FILE *file;
     FILE *parametersFile;
 
-    if (algorithm != GJF)
+    if (
+        algorithm != GJF)
     {
         printf(
-            "Error: the first polymer implementation "
+            "Error: polymer simulation "
             "only supports G-JF\n");
 
         exit(1);
@@ -64,7 +68,8 @@ void runPolymerSimulation(
         polymer.N < 2 || polymer.N > MAX_MONOMERS)
     {
         printf(
-            "Error: invalid number of monomers\n");
+            "Error: invalid number "
+            "of monomers\n");
 
         exit(1);
     }
@@ -81,22 +86,46 @@ void runPolymerSimulation(
     numberOfSteps =
         (int)(simulation.totalTime / simulation.dt);
 
-    maxSavedPoints = 5000;
+    maxSavedPoints =
+        simulation.maxSavedPoints;
+
+    if (
+        maxSavedPoints < 1)
+    {
+        maxSavedPoints = 5000;
+    }
 
     saveEvery =
         numberOfSteps / maxSavedPoints;
 
-    if (saveEvery < 1)
+    if (
+        saveEvery < 1)
     {
         saveEvery = 1;
     }
 
-    theoreticalVelocityStd = sqrt(
-        simulation.kBT / simulation.mass);
+    minThermalizationSteps =
+        (int)ceil(
+            simulation.minThermalizationTime / simulation.dt);
+
+    if (
+        minThermalizationSteps > numberOfSteps)
+    {
+        printf(
+            "Error: minimum thermalization "
+            "time is larger than totalTime\n");
+
+        exit(1);
+    }
+
+    theoreticalVelocityStd =
+        sqrt(
+            simulation.kBT / simulation.mass);
 
     tolerance = 0.05;
 
     requiredWindows = 3;
+
     consecutiveWindows = 0;
 
     thermalized = 0;
@@ -106,7 +135,16 @@ void runPolymerSimulation(
     printf(
         "Thermalizing polymer...\n");
 
-    while (thermalized == 0)
+    printf(
+        "N = %d\n",
+        polymer.N);
+
+    printf(
+        "Minimum thermalization time = %g\n",
+        simulation.minThermalizationTime);
+
+    while (
+        thermalized == 0)
     {
         velocitySum = 0.0;
         velocitySquaredSum = 0.0;
@@ -128,11 +166,19 @@ void runPolymerSimulation(
 
             thermalizationStep++;
 
-            for (int i = 0; i < polymer.N; i++)
+            for (
+                int i = polymer.firstEndFixed ? 1 : 0;
+                i < polymer.N;
+                i++)
             {
-                velocitySum += vx[i];
-                velocitySum += vy[i];
-                velocitySum += vz[i];
+                velocitySum +=
+                    vx[i];
+
+                velocitySum +=
+                    vy[i];
+
+                velocitySum +=
+                    vz[i];
 
                 velocitySquaredSum +=
                     vx[i] * vx[i];
@@ -146,7 +192,8 @@ void runPolymerSimulation(
         }
 
         int samples =
-            POLYMER_WINDOW * polymer.N * 3;
+            POLYMER_WINDOW *
+            (polymer.N - (polymer.firstEndFixed ? 1 : 0)) * 3;
 
         velocityMean =
             velocitySum / samples;
@@ -154,7 +201,8 @@ void runPolymerSimulation(
         velocityVariance =
             velocitySquaredSum / samples - velocityMean * velocityMean;
 
-        if (velocityVariance < 0.0)
+        if (
+            velocityVariance < 0.0)
         {
             velocityVariance = 0.0;
         }
@@ -172,13 +220,23 @@ void runPolymerSimulation(
             theoreticalVelocityStd);
 
         if (
-            fabs(
-                (
-                    velocityStd - theoreticalVelocityStd) /
-                theoreticalVelocityStd) < tolerance)
+            thermalizationStep >= minThermalizationSteps)
         {
-            consecutiveWindows++;
+            if (
+                fabs(
+                    (
+                        velocityStd - theoreticalVelocityStd) /
+                    theoreticalVelocityStd) < tolerance)
+            {
+                consecutiveWindows++;
+            }
+
+            else
+            {
+                consecutiveWindows = 0;
+            }
         }
+
         else
         {
             consecutiveWindows = 0;
@@ -191,7 +249,7 @@ void runPolymerSimulation(
         }
 
         if (
-            thermalizationStep >= numberOfSteps)
+            thermalizationStep >= numberOfSteps && thermalized == 0)
         {
             printf(
                 "Error: polymer thermalization "
@@ -202,8 +260,8 @@ void runPolymerSimulation(
     }
 
     printf(
-        "Polymer thermalized after %d steps "
-        "(t = %.3f)\n",
+        "Polymer thermalized after "
+        "%d steps (t = %.3f)\n",
         thermalizationStep,
         thermalizationStep * simulation.dt);
 
@@ -211,10 +269,12 @@ void runPolymerSimulation(
         outputFile,
         "w");
 
-    if (file == NULL)
+    if (
+        file == NULL)
     {
         printf(
-            "Error opening polymer output file\n");
+            "Error opening polymer "
+            "output file\n");
 
         exit(1);
     }
@@ -224,7 +284,10 @@ void runPolymerSimulation(
         file,
         "time,kinetic,elastic");
 
-    for (int i = 0; i < polymer.N; i++)
+    for (
+        int i = 0;
+        i < polymer.N;
+        i++)
     {
         fprintf(
             file,
@@ -272,7 +335,10 @@ void runPolymerSimulation(
                 kineticEnergy,
                 elasticEnergy);
 
-            for (int i = 0; i < polymer.N; i++)
+            for (
+                int i = 0;
+                i < polymer.N;
+                i++)
             {
                 fprintf(
                     file,
@@ -287,7 +353,8 @@ void runPolymerSimulation(
                 "\n");
         }
 
-        if (step < numberOfSteps)
+        if (
+            step < numberOfSteps)
         {
             polymerGJFStep(
                 x,
@@ -301,13 +368,15 @@ void runPolymerSimulation(
         }
     }
 
-    fclose(file);
+    fclose(
+        file);
 
     parametersFile = fopen(
         "data/raw/polymer/parameters.txt",
         "w");
 
-    if (parametersFile != NULL)
+    if (
+        parametersFile != NULL)
     {
         fprintf(
             parametersFile,
@@ -323,6 +392,16 @@ void runPolymerSimulation(
             parametersFile,
             "l0=%lf\n",
             polymer.equilibriumLength);
+
+        fprintf(
+            parametersFile,
+            "force=%lf\n",
+            polymer.externalForce);
+
+        fprintf(
+            parametersFile,
+            "firstEnd=%s\n",
+            polymer.firstEndFixed ? "fixed" : "free");
 
         fprintf(
             parametersFile,
@@ -356,6 +435,11 @@ void runPolymerSimulation(
 
         fprintf(
             parametersFile,
+            "minThermalizationTime=%lf\n",
+            simulation.minThermalizationTime);
+
+        fprintf(
+            parametersFile,
             "thermalizationSteps=%d\n",
             thermalizationStep);
 
@@ -363,6 +447,11 @@ void runPolymerSimulation(
             parametersFile,
             "thermalizationTime=%lf\n",
             thermalizationStep * simulation.dt);
+
+        fprintf(
+            parametersFile,
+            "maxSavedPoints=%d\n",
+            maxSavedPoints);
 
         fprintf(
             parametersFile,

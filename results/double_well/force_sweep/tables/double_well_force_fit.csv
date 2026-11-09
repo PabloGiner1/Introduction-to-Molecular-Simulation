@@ -1,0 +1,7 @@
+parameter,value
+fit_slope,9.49692397669132
+fit_intercept,0.007381000078119659
+fit_R2,0.9989920491717517
+expected_slope_2_over_kBT,10.0
+slope_relative_error_percent,5.030760233086795
+effective_kBT_from_fit,0.2105945045899788

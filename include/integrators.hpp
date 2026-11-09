@@ -11,35 +11,60 @@
 // Parámetros generales de la simulación
 struct SimulationParameters
 {
-    double dt;        // Paso temporal
-    double totalTime; // Tiempo total
+    double dt;
+    double totalTime;
 
-    double mass;  // Masa
-    double gamma; // Rozamiento
-    double kBT;   // Energía térmica kB*T
+    double mass;
+    double gamma;
+    double kBT;
 
-    double initialPosition; // Posición inicial
-    double initialVelocity; // Velocidad inicial
+    double initialPosition;
+    double initialVelocity;
+
+    int maxSavedPoints;
+
+    // Tiempo mínimo que debe pasar
+    // antes de aceptar la termalización.
+    double minThermalizationTime;
 };
 
 // Selecciona el algoritmo y realiza un paso
-void integrationStep(int algorithm, int model, double *x, double *v, SimulationParameters simulation,
-                     ModelParameters modelParameters);
+void integrationStep(
+    int algorithm,
+    int model,
+    double *x,
+    double *v,
+    SimulationParameters simulation,
+    ModelParameters modelParameters);
 
-// Los que hay que hacer para que realice un paso de cada algoritmo
-void eulerMaruyamaStep(int model, double *x, double *v, SimulationParameters simulation,
-                       ModelParameters modelParameters);
+// Euler-Maruyama
+void eulerMaruyamaStep(
+    int model,
+    double *x,
+    double *v,
+    SimulationParameters simulation,
+    ModelParameters modelParameters);
 
-void rungeKuttaStep(int model, double *x, double *v, SimulationParameters simulation,
-                    ModelParameters modelParameters);
+// Runge-Kutta estocástico
+void rungeKuttaStep(
+    int model,
+    double *x,
+    double *v,
+    SimulationParameters simulation,
+    ModelParameters modelParameters);
 
-void gjfStep(int model, double *x, double *v, SimulationParameters simulation,
-             ModelParameters modelParameters);
+// Grønbech-Jensen
+void gjfStep(
+    int model,
+    double *x,
+    double *v,
+    SimulationParameters simulation,
+    ModelParameters modelParameters);
 
-// Genera un número aleatorio gaussiano N(0,1)
+// Genera N(0,1)
 double randGaussian();
 
-// Genera una semilla aleatoria para srand
+// Genera una semilla aleatoria
 unsigned int generateRandomSeed();
 
 #endif

@@ -9,13 +9,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-project_root = Path(__file__).resolve().parents[1]
+project_root = Path(
+    __file__
+).resolve().parents[1]
+
 
 config_file = (
     project_root
     / "config"
     / "simulation.txt"
 )
+
 
 parameters_file = (
     project_root
@@ -25,12 +29,14 @@ parameters_file = (
     / "parameters.txt"
 )
 
+
 data_folder = (
     project_root
     / "data"
     / "raw"
     / "harmonic"
 )
+
 
 results_folder = (
     project_root
@@ -39,10 +45,12 @@ results_folder = (
     / "force_sweep"
 )
 
+
 tables_folder = (
     results_folder
     / "tables"
 )
+
 
 figures_folder = (
     results_folder
@@ -55,13 +63,45 @@ tables_folder.mkdir(
     exist_ok=True
 )
 
+
 figures_folder.mkdir(
     parents=True,
     exist_ok=True
 )
 
 
-# Valores de fuerza externa
+# ===================================
+# Parámetros del estudio
+# ===================================
+
+algorithm = "GJF"
+
+eta = 1.0
+
+A = 1.0
+
+kBT = 0.2
+
+mass = 1.0
+
+dt = 0.01
+
+
+# Tiempo de producción.
+total_time = 100000.0
+
+
+# Antes de empezar a medir obligamos
+# al sistema a evolucionar durante
+# al menos este tiempo.
+min_thermalization_time = 5000.0
+
+
+# Resolución suficiente para estudiar
+# también las transiciones.
+max_saved_points = 100000
+
+
 force_values = np.array([
     -0.4,
     -0.3,
@@ -75,7 +115,6 @@ force_values = np.array([
 ])
 
 
-# Condiciones iniciales independientes
 initial_positions = [
     -1.0,
     0.0,
@@ -83,20 +122,34 @@ initial_positions = [
 ]
 
 
-# Fuerzas que se mostrarán
-# en la gráfica del potencial
+# Más fuerzas para visualizar
+# claramente la inclinación.
 potential_plot_forces = [
+    -0.4,
     -0.2,
     0.0,
-    0.2
+    0.2,
+    0.4
 ]
 
 
 algorithms = {
-    "EULER_MARUYAMA": "euler",
-    "RUNGE_KUTTA": "rk",
-    "GJF": "gjf"
+    "EULER_MARUYAMA":
+        "euler",
+
+    "RUNGE_KUTTA":
+        "rk",
+
+    "GJF":
+        "gjf"
 }
+
+
+algorithm_name = (
+    algorithms[
+        algorithm
+    ]
+)
 
 
 if os.name == "nt":
@@ -120,9 +173,19 @@ if not simulation_program.exists():
 
     raise RuntimeError(
         "No se encuentra el ejecutable. "
-        "Compila primero la simulacion."
+        "Compila primero."
     )
 
+
+data_file = (
+    data_folder
+    / f"harmonic_{algorithm_name}.csv"
+)
+
+
+# ===================================
+# Funciones
+# ===================================
 
 def parse_key_values(text):
 
@@ -155,10 +218,11 @@ def parse_key_values(text):
     return values
 
 
-def integrate(y, x):
+def integrate(
+    y,
+    x
+):
 
-    # Compatible con distintas
-    # versiones de NumPy
     if hasattr(
         np,
         "trapezoid"
@@ -194,7 +258,8 @@ def theoretical_occupancy(
             x ** 2
             - 1.0
         ) ** 2
-        - force * x
+        - force
+        * x
     )
 
 
@@ -214,6 +279,7 @@ def theoretical_occupancy(
         x < 0.0
     )
 
+
     right_mask = (
         x > 0.0
     )
@@ -221,8 +287,12 @@ def theoretical_occupancy(
 
     probability_left = (
         integrate(
-            weights[left_mask],
-            x[left_mask]
+            weights[
+                left_mask
+            ],
+            x[
+                left_mask
+            ]
         )
         / total
     )
@@ -230,8 +300,12 @@ def theoretical_occupancy(
 
     probability_right = (
         integrate(
-            weights[right_mask],
-            x[right_mask]
+            weights[
+                right_mask
+            ],
+            x[
+                right_mask
+            ]
         )
         / total
     )
@@ -243,221 +317,53 @@ def theoretical_occupancy(
     )
 
 
-def residence_statistics(
-    time,
+def occupation_statistics(
     positions
 ):
 
-    # Estado -1: pozo izquierdo
-    # Estado +1: pozo derecho
-    states = np.where(
-        positions >= 0.0,
-        1,
-        -1
-    )
-
-
-    occupation_right = float(
+    right = float(
         np.mean(
-            states == 1
+            positions >= 0.0
         )
     )
 
-    occupation_left = float(
-        np.mean(
-            states == -1
-        )
+
+    left = (
+        1.0
+        - right
     )
 
 
     transitions = int(
         np.count_nonzero(
-            states[1:]
-            != states[:-1]
+            (
+                positions[
+                    1:
+                ]
+                >= 0.0
+            )
+            != (
+                positions[
+                    :-1
+                ]
+                >= 0.0
+            )
         )
     )
 
 
-    left_residence_times = []
-    right_residence_times = []
-
-
-    current_state = (
-        states[0]
+    return (
+        left,
+        right,
+        transitions
     )
-
-    residence_start = (
-        time[0]
-    )
-
-
-    # El primer intervalo puede haber
-    # empezado antes del inicio del CSV,
-    # así que no lo utilizamos.
-    first_interval = True
-
-
-    for i in range(
-        1,
-        len(states)
-    ):
-
-        if (
-            states[i]
-            != current_state
-        ):
-
-            duration = (
-                time[i]
-                - residence_start
-            )
-
-
-            if not first_interval:
-
-                if current_state == 1:
-
-                    right_residence_times.append(
-                        duration
-                    )
-
-                else:
-
-                    left_residence_times.append(
-                        duration
-                    )
-
-
-            else:
-
-                first_interval = False
-
-
-            current_state = (
-                states[i]
-            )
-
-            residence_start = (
-                time[i]
-            )
-
-
-    # El último intervalo tampoco se utiliza
-    # porque queda truncado al acabar la simulación.
-
-
-    left_residence_times = np.array(
-        left_residence_times,
-        dtype=float
-    )
-
-    right_residence_times = np.array(
-        right_residence_times,
-        dtype=float
-    )
-
-
-    if len(
-        left_residence_times
-    ) > 0:
-
-        mean_left_residence = float(
-            np.mean(
-                left_residence_times
-            )
-        )
-
-        median_left_residence = float(
-            np.median(
-                left_residence_times
-            )
-        )
-
-    else:
-
-        mean_left_residence = np.nan
-        median_left_residence = np.nan
-
-
-    if len(
-        right_residence_times
-    ) > 0:
-
-        mean_right_residence = float(
-            np.mean(
-                right_residence_times
-            )
-        )
-
-        median_right_residence = float(
-            np.median(
-                right_residence_times
-            )
-        )
-
-    else:
-
-        mean_right_residence = np.nan
-        median_right_residence = np.nan
-
-
-    if len(time) > 1:
-
-        saved_dt = float(
-            np.median(
-                np.diff(
-                    time
-                )
-            )
-        )
-
-    else:
-
-        saved_dt = np.nan
-
-
-    return {
-        "occupation_left":
-            occupation_left,
-
-        "occupation_right":
-            occupation_right,
-
-        "transitions":
-            transitions,
-
-        "mean_residence_left":
-            mean_left_residence,
-
-        "mean_residence_right":
-            mean_right_residence,
-
-        "median_residence_left":
-            median_left_residence,
-
-        "median_residence_right":
-            median_right_residence,
-
-        "residence_count_left":
-            len(
-                left_residence_times
-            ),
-
-        "residence_count_right":
-            len(
-                right_residence_times
-            ),
-
-        "saved_dt":
-            saved_dt
-    }
 
 
 def mean_and_std(
     values
 ):
 
-    values = np.array(
+    values = np.asarray(
         values,
         dtype=float
     )
@@ -505,79 +411,69 @@ def mean_and_std(
     )
 
 
+def calculate_r_squared(
+    observed,
+    predicted
+):
+
+    observed = np.asarray(
+        observed,
+        dtype=float
+    )
+
+
+    predicted = np.asarray(
+        predicted,
+        dtype=float
+    )
+
+
+    ss_res = float(
+        np.sum(
+            (
+                observed
+                - predicted
+            ) ** 2
+        )
+    )
+
+
+    ss_tot = float(
+        np.sum(
+            (
+                observed
+                - np.mean(
+                    observed
+                )
+            ) ** 2
+        )
+    )
+
+
+    if ss_tot == 0.0:
+
+        return np.nan
+
+
+    return (
+        1.0
+        - ss_res
+        / ss_tot
+    )
+
+
+# ===================================
+# Simulaciones
+# ===================================
+
 original_config = (
     config_file.read_text()
 )
 
 
-base_config = (
-    parse_key_values(
-        original_config
-    )
-)
-
-
-algorithm = (
-    base_config.get(
-        "algorithm",
-        "GJF"
-    )
-)
-
-
-if algorithm not in algorithms:
-
-    raise ValueError(
-        f"Algoritmo desconocido: "
-        f"{algorithm}"
-    )
-
-
-eta = float(
-    base_config.get(
-        "eta",
-        "1.0"
-    )
-)
-
-A = float(
-    base_config.get(
-        "A",
-        "1.0"
-    )
-)
-
-dt = float(
-    base_config.get(
-        "h",
-        "0.01"
-    )
-)
-
-total_time = float(
-    base_config.get(
-        "totalTime",
-        "100000"
-    )
-)
-
-
-algorithm_name = (
-    algorithms[
-        algorithm
-    ]
-)
-
-
-data_file = (
-    data_folder
-    / f"harmonic_{algorithm_name}.csv"
-)
-
-
 base_seed = secrets.randbelow(
     (2 ** 32 - 1)
-    - 30000
+    - 1000000
 )
 
 
@@ -586,9 +482,12 @@ results = []
 
 try:
 
-    for force_value in force_values:
+    for force_index, force_value in enumerate(
+        force_values
+    ):
 
         print()
+
         print(
             "==================================="
         )
@@ -602,32 +501,44 @@ try:
         )
 
 
-        for initial_index, x0 in enumerate(
+        for (
+            initial_index,
+            x0
+        ) in enumerate(
             initial_positions
         ):
 
             seed = (
                 base_seed
+                + force_index
+                * 50000
                 + initial_index
                 * 11111
             )
 
 
             config_file.write_text(
+                "model=DOUBLE_WELL\n"
                 f"algorithm={algorithm}\n"
                 f"eta={eta:.12g}\n"
+                f"kBT={kBT:.12g}\n"
+                f"mass={mass:.12g}\n"
                 f"A={A:.12g}\n"
                 f"force={force_value:.12g}\n"
                 f"h={dt:.12g}\n"
                 f"totalTime={total_time:.12g}\n"
+                f"minThermalizationTime="
+                f"{min_thermalization_time:.12g}\n"
+                f"maxSavedPoints="
+                f"{max_saved_points}\n"
                 f"seed={seed}\n"
                 f"x0={x0:.12g}\n"
-                f"v0=0.0\n"
+                "v0=0.0\n"
             )
 
 
             print(
-                f"Simulando x0={x0:g}, "
+                f"x0={x0:g}, "
                 f"seed={seed}"
             )
 
@@ -668,29 +579,6 @@ try:
             )
 
 
-            kBT = float(
-                parameters[
-                    "kBT"
-                ]
-            )
-
-
-            actual_A = float(
-                parameters.get(
-                    "A",
-                    A
-                )
-            )
-
-
-            actual_eta = float(
-                parameters.get(
-                    "gamma",
-                    eta
-                )
-            )
-
-
             data = np.loadtxt(
                 data_file,
                 delimiter=",",
@@ -719,13 +607,6 @@ try:
                 )
 
 
-            time = (
-                data[
-                    :,
-                    0
-                ]
-            )
-
             positions = (
                 data[
                     :,
@@ -734,19 +615,29 @@ try:
             )
 
 
-            statistics = (
-                residence_statistics(
-                    time,
-                    positions
-                )
+            (
+                occupation_left,
+                occupation_right,
+                transitions
+            ) = occupation_statistics(
+                positions
             )
 
 
-            theory_left, theory_right = (
-                theoretical_occupancy(
-                    actual_A,
-                    force_value,
-                    kBT
+            (
+                theory_left,
+                theory_right
+            ) = theoretical_occupancy(
+                A,
+                force_value,
+                kBT
+            )
+
+
+            thermalization_time = float(
+                parameters.get(
+                    "thermalizationTime",
+                    np.nan
                 )
             )
 
@@ -761,24 +652,11 @@ try:
                 "seed":
                     seed,
 
-                "A":
-                    actual_A,
-
-                "eta":
-                    actual_eta,
-
-                "kBT":
-                    kBT,
-
                 "occupation_left":
-                    statistics[
-                        "occupation_left"
-                    ],
+                    occupation_left,
 
                 "occupation_right":
-                    statistics[
-                        "occupation_right"
-                    ],
+                    occupation_right,
 
                 "theory_left":
                     theory_left,
@@ -787,86 +665,43 @@ try:
                     theory_right,
 
                 "transitions":
-                    statistics[
-                        "transitions"
-                    ],
+                    transitions,
 
-                "mean_residence_left":
-                    statistics[
-                        "mean_residence_left"
-                    ],
-
-                "mean_residence_right":
-                    statistics[
-                        "mean_residence_right"
-                    ],
-
-                "median_residence_left":
-                    statistics[
-                        "median_residence_left"
-                    ],
-
-                "median_residence_right":
-                    statistics[
-                        "median_residence_right"
-                    ],
-
-                "residence_count_left":
-                    statistics[
-                        "residence_count_left"
-                    ],
-
-                "residence_count_right":
-                    statistics[
-                        "residence_count_right"
-                    ],
-
-                "saved_dt":
-                    statistics[
-                        "saved_dt"
-                    ]
+                "thermalization_time":
+                    thermalization_time
             })
 
 
             print(
-                "  P(-) = "
-                f"{statistics['occupation_left']:.3f}, "
-                "P(+) = "
-                f"{statistics['occupation_right']:.3f}"
+                f"  t_therm = "
+                f"{thermalization_time:.1f}"
             )
 
+
             print(
-                "  Transiciones observadas = "
-                f"{statistics['transitions']}"
+                f"  P(-) = "
+                f"{occupation_left:.4f}"
+            )
+
+
+            print(
+                f"  P(+) = "
+                f"{occupation_right:.4f}"
             )
 
 
 finally:
 
+    # Recuperamos la configuración
+    # que tuviera el usuario.
     config_file.write_text(
         original_config
     )
 
 
-if len(results) == 0:
-
-    raise RuntimeError(
-        "No se han generado resultados."
-    )
-
-
-A_used = (
-    results[0]["A"]
-)
-
-eta_used = (
-    results[0]["eta"]
-)
-
-kBT_used = (
-    results[0]["kBT"]
-)
-
+# ===================================
+# Promedio de las realizaciones
+# ===================================
 
 summary = []
 
@@ -877,85 +712,56 @@ for force_value in force_values:
         row
         for row in results
         if np.isclose(
-            row["force"],
+            row[
+                "force"
+            ],
             force_value
         )
     ]
 
 
-    left_values = [
+    (
+        left_mean,
+        left_std
+    ) = mean_and_std([
         row[
             "occupation_left"
         ]
         for row in rows
-    ]
+    ])
 
 
-    right_values = [
+    (
+        right_mean,
+        right_std
+    ) = mean_and_std([
         row[
             "occupation_right"
         ]
         for row in rows
-    ]
+    ])
 
 
-    residence_left_values = [
-        row[
-            "mean_residence_left"
-        ]
-        for row in rows
-    ]
-
-
-    residence_right_values = [
-        row[
-            "mean_residence_right"
-        ]
-        for row in rows
-    ]
-
-
-    transition_values = [
+    (
+        transition_mean,
+        transition_std
+    ) = mean_and_std([
         row[
             "transitions"
         ]
         for row in rows
-    ]
+    ])
 
 
-    occupation_left_mean, occupation_left_std = (
-        mean_and_std(
-            left_values
-        )
-    )
-
-
-    occupation_right_mean, occupation_right_std = (
-        mean_and_std(
-            right_values
-        )
-    )
-
-
-    residence_left_mean, residence_left_std = (
-        mean_and_std(
-            residence_left_values
-        )
-    )
-
-
-    residence_right_mean, residence_right_std = (
-        mean_and_std(
-            residence_right_values
-        )
-    )
-
-
-    transitions_mean, transitions_std = (
-        mean_and_std(
-            transition_values
-        )
-    )
+    (
+        thermalization_mean,
+        thermalization_std
+    ) = mean_and_std([
+        row[
+            "thermalization_time"
+        ]
+        for row in rows
+    ])
 
 
     summary.append({
@@ -963,56 +769,48 @@ for force_value in force_values:
             force_value,
 
         "occupation_left_mean":
-            occupation_left_mean,
+            left_mean,
 
         "occupation_left_std":
-            occupation_left_std,
+            left_std,
 
         "occupation_right_mean":
-            occupation_right_mean,
+            right_mean,
 
         "occupation_right_std":
-            occupation_right_std,
+            right_std,
 
         "theory_left":
-            rows[0][
+            rows[
+                0
+            ][
                 "theory_left"
             ],
 
         "theory_right":
-            rows[0][
+            rows[
+                0
+            ][
                 "theory_right"
             ],
 
-        "mean_residence_left":
-            residence_left_mean,
-
-        "std_residence_left":
-            residence_left_std,
-
-        "mean_residence_right":
-            residence_right_mean,
-
-        "std_residence_right":
-            residence_right_std,
-
         "transitions_mean":
-            transitions_mean,
+            transition_mean,
 
         "transitions_std":
-            transitions_std,
+            transition_std,
 
-        "saved_dt_mean":
-            float(
-                np.mean([
-                    row[
-                        "saved_dt"
-                    ]
-                    for row in rows
-                ])
-            )
+        "thermalization_time_mean":
+            thermalization_mean,
+
+        "thermalization_time_std":
+            thermalization_std
     })
 
+
+# ===================================
+# Tablas
+# ===================================
 
 individual_file = (
     tables_folder
@@ -1028,7 +826,9 @@ with individual_file.open(
     writer = csv.DictWriter(
         file,
         fieldnames=list(
-            results[0].keys()
+            results[
+                0
+            ].keys()
         )
     )
 
@@ -1053,7 +853,9 @@ with summary_file.open(
     writer = csv.DictWriter(
         file,
         fieldnames=list(
-            summary[0].keys()
+            summary[
+                0
+            ].keys()
         )
     )
 
@@ -1063,6 +865,10 @@ with summary_file.open(
         summary
     )
 
+
+# ===================================
+# Arrays
+# ===================================
 
 forces = np.array([
     row[
@@ -1121,7 +927,287 @@ theory_left = np.array([
 
 
 # ===================================
-# 1. Ocupación frente a fuerza
+# Ajuste de los puntos de simulación
+# ===================================
+
+valid_fit = (
+    (right_mean > 0.0)
+    & (right_mean < 1.0)
+    & (left_mean > 0.0)
+    & (left_mean < 1.0)
+)
+
+
+fit_forces = (
+    forces[
+        valid_fit
+    ]
+)
+
+
+fit_log_ratio = np.log(
+    right_mean[
+        valid_fit
+    ]
+    / left_mean[
+        valid_fit
+    ]
+)
+
+
+fit_log_ratio_std = (
+    right_std[
+        valid_fit
+    ]
+    / (
+        right_mean[
+            valid_fit
+        ]
+        * left_mean[
+            valid_fit
+        ]
+    )
+)
+
+
+weights = np.ones(
+    len(
+        fit_forces
+    )
+)
+
+
+good_errors = (
+    np.isfinite(
+        fit_log_ratio_std
+    )
+    & (
+        fit_log_ratio_std > 0.0
+    )
+)
+
+
+weights[
+    good_errors
+] = (
+    1.0
+    / fit_log_ratio_std[
+        good_errors
+    ]
+)
+
+
+fit_coefficients = np.polyfit(
+    fit_forces,
+    fit_log_ratio,
+    1,
+    w=weights
+)
+
+
+fit_slope = float(
+    fit_coefficients[
+        0
+    ]
+)
+
+
+fit_intercept = float(
+    fit_coefficients[
+        1
+    ]
+)
+
+
+fit_prediction_points = (
+    fit_slope
+    * fit_forces
+    + fit_intercept
+)
+
+
+fit_r_squared = (
+    calculate_r_squared(
+        fit_log_ratio,
+        fit_prediction_points
+    )
+)
+
+
+expected_slope = (
+    2.0
+    / kBT
+)
+
+
+slope_error_percent = (
+    abs(
+        fit_slope
+        - expected_slope
+    )
+    / expected_slope
+    * 100.0
+)
+
+
+if fit_slope > 0.0:
+
+    effective_kBT = (
+        2.0
+        / fit_slope
+    )
+
+else:
+
+    effective_kBT = np.nan
+
+
+fit_file = (
+    tables_folder
+    / "double_well_force_fit.csv"
+)
+
+
+with fit_file.open(
+    "w",
+    newline=""
+) as file:
+
+    writer = csv.writer(
+        file
+    )
+
+    writer.writerow([
+        "parameter",
+        "value"
+    ])
+
+    writer.writerow([
+        "fit_slope",
+        fit_slope
+    ])
+
+    writer.writerow([
+        "fit_intercept",
+        fit_intercept
+    ])
+
+    writer.writerow([
+        "fit_R2",
+        fit_r_squared
+    ])
+
+    writer.writerow([
+        "expected_slope_2_over_kBT",
+        expected_slope
+    ])
+
+    writer.writerow([
+        "slope_relative_error_percent",
+        slope_error_percent
+    ])
+
+    writer.writerow([
+        "effective_kBT_from_fit",
+        effective_kBT
+    ])
+
+
+# ===================================
+# Curvas continuas
+# ===================================
+
+force_dense = np.linspace(
+    force_values[
+        0
+    ],
+    force_values[
+        -1
+    ],
+    401
+)
+
+
+canonical_right_dense = []
+
+canonical_left_dense = []
+
+
+for force_value in force_dense:
+
+    (
+        p_left,
+        p_right
+    ) = theoretical_occupancy(
+        A,
+        force_value,
+        kBT
+    )
+
+
+    canonical_left_dense.append(
+        p_left
+    )
+
+
+    canonical_right_dense.append(
+        p_right
+    )
+
+
+canonical_left_dense = np.array(
+    canonical_left_dense
+)
+
+
+canonical_right_dense = np.array(
+    canonical_right_dense
+)
+
+
+# Ajuste obtenido de la simulación:
+#
+# ln(P+/P-) = m F + b
+#
+# P+ = 1 / (1 + exp[-(mF+b)])
+fit_right_dense = (
+    1.0
+    / (
+        1.0
+        + np.exp(
+            -(
+                fit_slope
+                * force_dense
+                + fit_intercept
+            )
+        )
+    )
+)
+
+
+fit_left_dense = (
+    1.0
+    - fit_right_dense
+)
+
+
+# Aproximación de dos estados
+# esperada teóricamente.
+two_state_right_dense = (
+    1.0
+    / (
+        1.0
+        + np.exp(
+            -2.0
+            * force_dense
+            / kBT
+        )
+    )
+)
+
+
+# ===================================
+# 1. Ocupación de ambos pozos
 # ===================================
 
 plt.figure(
@@ -1130,18 +1216,18 @@ plt.figure(
 
 
 plt.plot(
-    forces,
-    theory_right,
+    force_dense,
+    canonical_right_dense,
     linestyle="--",
-    label=r"Teoría $P(x>0)$"
+    label=r"Teoría canónica $P_+$"
 )
 
 
 plt.plot(
-    forces,
-    theory_left,
+    force_dense,
+    canonical_left_dense,
     linestyle="--",
-    label=r"Teoría $P(x<0)$"
+    label=r"Teoría canónica $P_-$"
 )
 
 
@@ -1164,7 +1250,8 @@ plt.errorbar(
     yerr=right_std,
     marker="o",
     capsize=4,
-    label=r"Simulación $P(x>0)$"
+    linestyle="none",
+    label=r"Simulación $P_+$"
 )
 
 
@@ -1174,7 +1261,8 @@ plt.errorbar(
     yerr=left_std,
     marker="o",
     capsize=4,
-    label=r"Simulación $P(x<0)$"
+    linestyle="none",
+    label=r"Simulación $P_-$"
 )
 
 
@@ -1182,9 +1270,11 @@ plt.xlabel(
     "Fuerza externa $F$"
 )
 
+
 plt.ylabel(
     "Ocupación"
 )
+
 
 plt.ylim(
     -0.02,
@@ -1193,10 +1283,11 @@ plt.ylim(
 
 
 plt.title(
-    "Ocupación de los pozos frente a la fuerza externa\n"
-    f"$A={A_used:g}$, "
-    f"$\\eta={eta_used:g}$, "
-    f"$k_BT={kBT_used:g}$"
+    "Ocupación de los pozos "
+    "frente a la fuerza externa\n"
+    f"$A={A:g}$, "
+    f"$\\eta={eta:g}$, "
+    f"$k_BT={kBT:g}$"
 )
 
 
@@ -1205,7 +1296,9 @@ plt.grid(
     alpha=0.3
 )
 
+
 plt.legend()
+
 
 plt.tight_layout()
 
@@ -1222,7 +1315,117 @@ plt.close()
 
 
 # ===================================
-# 2. Potencial para varias fuerzas
+# 2. Comprobación explícita del fit
+# ===================================
+
+plt.figure(
+    figsize=(8, 5)
+)
+
+
+plt.errorbar(
+    forces,
+    right_mean,
+    yerr=right_std,
+    marker="o",
+    capsize=4,
+    linestyle="none",
+    label=r"Simulación $P_+$"
+)
+
+
+plt.plot(
+    force_dense,
+    canonical_right_dense,
+    linestyle="--",
+    label="Teoría canónica"
+)
+
+
+plt.plot(
+    force_dense,
+    fit_right_dense,
+    label=(
+        "Fit simulación: "
+        fr"$m={fit_slope:.3f}$"
+    )
+)
+
+
+plt.plot(
+    force_dense,
+    two_state_right_dense,
+    linestyle=":",
+    label=(
+        "Dos estados: "
+        fr"$m=2/k_BT={expected_slope:.3f}$"
+    )
+)
+
+
+plt.axhline(
+    0.5,
+    linestyle="-.",
+    alpha=0.6
+)
+
+
+plt.axvline(
+    0.0,
+    linestyle="-.",
+    alpha=0.6
+)
+
+
+plt.xlabel(
+    "Fuerza externa $F$"
+)
+
+
+plt.ylabel(
+    r"$P_+=P(x>0)$"
+)
+
+
+plt.ylim(
+    -0.02,
+    1.02
+)
+
+
+plt.title(
+    "Ajuste de la ocupación "
+    "del pozo derecho\n"
+    fr"$R^2={fit_r_squared:.4f}$, "
+    fr"$b={fit_intercept:.3f}$"
+)
+
+
+plt.grid(
+    True,
+    alpha=0.3
+)
+
+
+plt.legend()
+
+
+plt.tight_layout()
+
+
+plt.savefig(
+    figures_folder
+    / "double_well_occupation_fit.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+
+plt.close()
+
+
+# ===================================
+# 3. Potencial con más fuerzas
 # ===================================
 
 x_plot = np.linspace(
@@ -1240,7 +1443,7 @@ plt.figure(
 for force_value in potential_plot_forces:
 
     potential = (
-        A_used
+        A
         * (
             x_plot ** 2
             - 1.0
@@ -1268,14 +1471,16 @@ plt.xlabel(
     "Posición $x$"
 )
 
+
 plt.ylabel(
     "Potencial $V(x)$"
 )
 
 
 plt.title(
-    "Inclinación del doble pozo por una fuerza externa\n"
-    f"$A={A_used:g}$"
+    "Inclinación del doble pozo "
+    "por una fuerza externa\n"
+    f"$A={A:g}$"
 )
 
 
@@ -1284,7 +1489,9 @@ plt.grid(
     alpha=0.3
 )
 
+
 plt.legend()
+
 
 plt.tight_layout()
 
@@ -1301,188 +1508,82 @@ plt.close()
 
 
 # ===================================
-# 3. Tiempo medio de estancia
+# 4. Logaritmo del cociente
 # ===================================
-
-residence_left = np.array([
-    row[
-        "mean_residence_left"
-    ]
-    for row in summary
-])
-
-
-residence_left_std = np.array([
-    row[
-        "std_residence_left"
-    ]
-    for row in summary
-])
-
-
-residence_right = np.array([
-    row[
-        "mean_residence_right"
-    ]
-    for row in summary
-])
-
-
-residence_right_std = np.array([
-    row[
-        "std_residence_right"
-    ]
-    for row in summary
-])
-
-
-plt.figure(
-    figsize=(8, 5)
-)
-
-
-plt.errorbar(
-    forces,
-    residence_right,
-    yerr=residence_right_std,
-    marker="o",
-    capsize=4,
-    label=r"$\langle\tau_+\rangle$"
-)
-
-
-plt.errorbar(
-    forces,
-    residence_left,
-    yerr=residence_left_std,
-    marker="o",
-    capsize=4,
-    label=r"$\langle\tau_-\rangle$"
-)
-
-
-plt.axvline(
-    0.0,
-    linestyle=":"
-)
-
-
-plt.xlabel(
-    "Fuerza externa $F$"
-)
-
-plt.ylabel(
-    "Tiempo medio de estancia"
-)
-
-
-plt.title(
-    "Tiempo medio de estancia en cada pozo\n"
-    f"$A={A_used:g}$, "
-    f"$\\eta={eta_used:g}$"
-)
-
-
-# Los tiempos pueden cambiar
-# varios órdenes de magnitud.
-plt.yscale(
-    "log"
-)
-
-
-plt.grid(
-    True,
-    alpha=0.3
-)
-
-plt.legend()
-
-plt.tight_layout()
-
-
-plt.savefig(
-    figures_folder
-    / "double_well_residence_time_vs_force.png",
-    dpi=300,
-    bbox_inches="tight"
-)
-
-
-plt.close()
-
-
-# ===================================
-# 4. Logaritmo del cociente de ocupaciones
-# ===================================
-
-valid_simulation = (
-    (right_mean > 0.0)
-    & (left_mean > 0.0)
-)
-
 
 simulation_log_ratio = np.full(
-    len(forces),
+    len(
+        forces
+    ),
     np.nan
+)
+
+
+log_ratio_std = np.full(
+    len(
+        forces
+    ),
+    np.nan
+)
+
+
+valid_log = (
+    (right_mean > 0.0)
+    & (right_mean < 1.0)
 )
 
 
 simulation_log_ratio[
-    valid_simulation
+    valid_log
 ] = np.log(
     right_mean[
-        valid_simulation
+        valid_log
     ]
-    / left_mean[
-        valid_simulation
-    ]
+    / (
+        1.0
+        - right_mean[
+            valid_log
+        ]
+    )
 )
 
 
-# Propagación aproximada de la
-# dispersión de P+ al logit.
-log_ratio_std = np.full(
-    len(forces),
-    np.nan
-)
-
-
-for i in range(
-    len(forces)
-):
-
-    p = right_mean[i]
-
-    sigma_p = right_std[i]
-
-
-    if (
-        p > 0.0
-        and p < 1.0
-    ):
-
-        log_ratio_std[i] = (
-            sigma_p
-            / (
-                p
-                * (
-                    1.0
-                    - p
-                )
-            )
+log_ratio_std[
+    valid_log
+] = (
+    right_std[
+        valid_log
+    ]
+    / (
+        right_mean[
+            valid_log
+        ]
+        * (
+            1.0
+            - right_mean[
+                valid_log
+            ]
         )
-
-
-theory_log_ratio = np.log(
-    theory_right
-    / theory_left
+    )
 )
 
 
-two_state_approximation = (
-    2.0
-    * forces
-    / kBT_used
+canonical_log_ratio_dense = np.log(
+    canonical_right_dense
+    / canonical_left_dense
+)
+
+
+two_state_log_ratio_dense = (
+    expected_slope
+    * force_dense
+)
+
+
+fit_log_ratio_dense = (
+    fit_slope
+    * force_dense
+    + fit_intercept
 )
 
 
@@ -1497,37 +1598,52 @@ plt.errorbar(
     yerr=log_ratio_std,
     marker="o",
     capsize=4,
+    linestyle="none",
     label="Simulación"
 )
 
 
 plt.plot(
-    forces,
-    theory_log_ratio,
+    force_dense,
+    canonical_log_ratio_dense,
     linestyle="--",
     label="Teoría canónica"
 )
 
 
 plt.plot(
-    forces,
-    two_state_approximation,
+    force_dense,
+    fit_log_ratio_dense,
+    label=(
+        "Ajuste simulación: "
+        fr"$m={fit_slope:.3f}$, "
+        fr"$R^2={fit_r_squared:.4f}$"
+    )
+)
+
+
+plt.plot(
+    force_dense,
+    two_state_log_ratio_dense,
     linestyle=":",
-    label=r"Aproximación $2F/k_BT$"
+    label=(
+        r"Dos estados: "
+        fr"$m=2/k_BT={expected_slope:.3f}$"
+    )
 )
 
 
 plt.axhline(
     0.0,
     linestyle="-.",
-    alpha=0.7
+    alpha=0.6
 )
 
 
 plt.axvline(
     0.0,
     linestyle="-.",
-    alpha=0.7
+    alpha=0.6
 )
 
 
@@ -1535,14 +1651,15 @@ plt.xlabel(
     "Fuerza externa $F$"
 )
 
+
 plt.ylabel(
-    r"$\ln\left(P_+/P_-\right)$"
+    r"$\ln(P_+/P_-)$"
 )
 
 
 plt.title(
-    "Razón de ocupaciones frente a la fuerza externa\n"
-    f"$k_BT={kBT_used:g}$"
+    "Razón de ocupaciones "
+    "frente a la fuerza externa"
 )
 
 
@@ -1551,7 +1668,9 @@ plt.grid(
     alpha=0.3
 )
 
+
 plt.legend()
+
 
 plt.tight_layout()
 
@@ -1567,35 +1686,117 @@ plt.savefig(
 plt.close()
 
 
-print()
-print("===================================")
-print("BARRIDO DE FUERZA COMPLETADO")
-print("===================================")
+# ===================================
+# Resumen
+# ===================================
 
 print()
 
 print(
-    f"Tabla individual:"
+    "==================================="
+)
+
+print(
+    "BARRIDO DE FUERZA COMPLETADO"
+)
+
+print(
+    "==================================="
+)
+
+print()
+
+print(
+    "Parámetros:"
+)
+
+print(
+    f"  A = {A}"
+)
+
+print(
+    f"  eta = {eta}"
+)
+
+print(
+    f"  kBT = {kBT}"
+)
+
+print(
+    f"  h = {dt}"
+)
+
+print(
+    f"  T produccion = {total_time}"
+)
+
+print(
+    "  T minimo termalizacion = "
+    f"{min_thermalization_time}"
+)
+
+print()
+
+print(
+    "Ajuste:"
+)
+
+print(
+    "  ln(P+/P-) = m F + b"
+)
+
+print(
+    f"  m experimental = "
+    f"{fit_slope:.5f}"
+)
+
+print(
+    f"  m teorica = "
+    f"{expected_slope:.5f}"
+)
+
+print(
+    f"  error pendiente = "
+    f"{slope_error_percent:.2f} %"
+)
+
+print(
+    f"  b = "
+    f"{fit_intercept:.5f}"
+)
+
+print(
+    f"  R2 = "
+    f"{fit_r_squared:.5f}"
+)
+
+print(
+    f"  kBT efectivo = "
+    f"{effective_kBT:.5f}"
+)
+
+print()
+
+print(
+    "Tablas:"
 )
 
 print(
     individual_file
 )
 
-print()
-
-print(
-    f"Tabla resumen:"
-)
-
 print(
     summary_file
 )
 
+print(
+    fit_file
+)
+
 print()
 
 print(
-    "Figuras generadas:"
+    "Figuras:"
 )
 
 print(
@@ -1605,28 +1806,15 @@ print(
 
 print(
     figures_folder
+    / "double_well_occupation_fit.png"
+)
+
+print(
+    figures_folder
     / "double_well_potential_vs_force.png"
 )
 
 print(
     figures_folder
-    / "double_well_residence_time_vs_force.png"
-)
-
-print(
-    figures_folder
     / "double_well_log_occupation_ratio.png"
-)
-
-print()
-
-print(
-    "IMPORTANTE: los tiempos de estancia "
-    "se calculan a partir de los puntos "
-    "guardados en el CSV."
-)
-
-print(
-    "Si entre dos muestras ocurren varias "
-    "transiciones, estas no pueden detectarse."
 )

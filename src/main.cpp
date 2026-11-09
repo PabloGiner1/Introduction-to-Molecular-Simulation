@@ -39,6 +39,9 @@ int main()
     simulation.initialPosition = 1.0;
     simulation.initialVelocity = 0.0;
 
+    simulation.maxSavedPoints = 10000;
+    simulation.minThermalizationTime = 0.0;
+
     // Parámetros de los modelos escalares
     modelParameters.k = 1.0;
     modelParameters.A = 1.0;
@@ -48,6 +51,8 @@ int main()
     polymerParameters.N = 8;
     polymerParameters.springConstant = 100.0;
     polymerParameters.equilibriumLength = 1.0;
+    polymerParameters.externalForce = 0.0;
+    polymerParameters.firstEndFixed = true;
 
     // Valores por defecto
     algorithm = EULER_MARUYAMA;
@@ -106,6 +111,7 @@ int main()
                 {
                     model = HARMONIC;
                 }
+
                 else if (
                     strcmp(
                         value,
@@ -113,6 +119,7 @@ int main()
                 {
                     model = DOUBLE_WELL;
                 }
+
                 else if (
                     strcmp(
                         value,
@@ -120,6 +127,7 @@ int main()
                 {
                     model = POLYMER;
                 }
+
                 else
                 {
                     printf(
@@ -149,6 +157,7 @@ int main()
                     algorithm =
                         EULER_MARUYAMA;
                 }
+
                 else if (
                     strcmp(
                         value,
@@ -157,6 +166,7 @@ int main()
                     algorithm =
                         RUNGE_KUTTA;
                 }
+
                 else if (
                     strcmp(
                         value,
@@ -165,6 +175,7 @@ int main()
                     algorithm =
                         GJF;
                 }
+
                 else
                 {
                     printf(
@@ -225,6 +236,42 @@ int main()
                 modelParameters.externalForce =
                     atof(
                         value);
+                polymerParameters.externalForce =
+                    atof(
+                        value);
+            }
+
+            else if (
+                strcmp(
+                    name,
+                    "firstEnd") == 0)
+            {
+                if (
+                    strcmp(
+                        value,
+                        "fixed") == 0)
+                {
+                    polymerParameters.firstEndFixed = true;
+                }
+
+                else if (
+                    strcmp(
+                        value,
+                        "free") == 0)
+                {
+                    polymerParameters.firstEndFixed = false;
+                }
+
+                else
+                {
+                    printf(
+                        "Error: firstEnd must be fixed or free\n");
+
+                    fclose(
+                        configFile);
+
+                    return 1;
+                }
             }
 
             else if (
@@ -280,6 +327,26 @@ int main()
             else if (
                 strcmp(
                     name,
+                    "maxSavedPoints") == 0)
+            {
+                simulation.maxSavedPoints =
+                    atoi(
+                        value);
+            }
+
+            else if (
+                strcmp(
+                    name,
+                    "minThermalizationTime") == 0)
+            {
+                simulation.minThermalizationTime =
+                    atof(
+                        value);
+            }
+
+            else if (
+                strcmp(
+                    name,
                     "seed") == 0)
             {
                 if (
@@ -289,6 +356,7 @@ int main()
                 {
                     useRandomSeed = true;
                 }
+
                 else
                 {
                     seed =
@@ -327,6 +395,18 @@ int main()
     fclose(
         configFile);
 
+    if (
+        simulation.maxSavedPoints < 1)
+    {
+        simulation.maxSavedPoints = 10000;
+    }
+
+    if (
+        simulation.minThermalizationTime < 0.0)
+    {
+        simulation.minThermalizationTime = 0.0;
+    }
+
     seed =
         useRandomSeed
             ? generateRandomSeed()
@@ -359,6 +439,7 @@ int main()
     }
 
     printf("\n");
+
     printf(
         "Algorithm: %s\n",
         algorithmText);
@@ -380,13 +461,22 @@ int main()
         simulation.totalTime);
 
     printf(
+        "Minimum thermalization time = %g\n",
+        simulation.minThermalizationTime);
+
+    printf(
+        "Max saved points = %d\n",
+        simulation.maxSavedPoints);
+
+    printf(
         "Seed = %u\n",
         seed);
 
     printf("\n");
 
     // Polímero
-    if (model == POLYMER)
+    if (
+        model == POLYMER)
     {
         printf(
             "Model: POLYMER\n");
@@ -403,6 +493,14 @@ int main()
             "l0 = %g\n",
             polymerParameters.equilibriumLength);
 
+        printf(
+            "External force on last monomer (+x) = %g\n",
+            polymerParameters.externalForce);
+
+        printf(
+            "First end = %s\n",
+            polymerParameters.firstEndFixed ? "fixed" : "free");
+
         printf("\n");
 
         strcpy(
@@ -418,14 +516,15 @@ int main()
         return 0;
     }
 
-    // Modelos anteriores
-    if (model == HARMONIC)
+    if (
+        model == HARMONIC)
     {
         printf(
             "Model: HARMONIC\n");
     }
 
-    if (model == DOUBLE_WELL)
+    if (
+        model == DOUBLE_WELL)
     {
         printf(
             "Model: DOUBLE_WELL\n");
