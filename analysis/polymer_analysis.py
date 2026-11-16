@@ -112,7 +112,6 @@ N = int(
     ]
 )
 
-
 ke = parameters[
     "ke"
 ]
@@ -1120,7 +1119,7 @@ plt.axvline(
         f" = {mean_bond_length:.4f}"
     )
 )
-
+plt.legend()
 
 plt.xlabel(
     "Longitud de enlace $l$"

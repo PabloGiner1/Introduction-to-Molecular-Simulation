@@ -106,49 +106,50 @@ def main():
     tables_folder.mkdir(parents=True, exist_ok=True)
     figures_folder.mkdir(parents=True, exist_ok=True)
 
-    # try:
-    #     for force in np.concatenate((forces_low, forces)):
-    #         run_config = set_config_value(original_config, "model", "POLYMER")
-    #         run_config = set_config_value(
-    #             run_config,
-    #             "force",
-    #             f"{force:.8g}",
-    #         )
-    #         config_file.write_text(run_config)
+    try:
+        for force in np.concatenate((forces_low, forces)):
+            run_config = set_config_value(original_config, "model", "POLYMER")
+            run_config = set_config_value(
+                run_config,
+                "force",
+                f"{force:.8g}",
+            )
+            config_file.write_text(run_config)
 
-    #         print(f"Simulando fuerza {force:g}...")
-    #         subprocess.run(
-    #             [str(simulation_program)],
-    #             cwd=project_root,
-    #             check=True,
-    #         )
+            print(f"Simulando fuerza {force:g}...")
+            subprocess.run(
+                [str(simulation_program)],
+                cwd=project_root,
+                check=True,
+            )
 
-    #         final_time, end_to_end_x = read_final_measurement(
-    #             number_of_monomers
-    #         )
-    #         measurements.append((force, end_to_end_x, final_time))
-    #         print(
-    #             f"  t_final = {final_time:g}, "
-    #             f"distancia en +x = {end_to_end_x:g}"
-    #         )
-    # finally:
-    #     config_file.write_text(original_config)
+            final_time, end_to_end_x = read_final_measurement(
+                number_of_monomers
+            )
+            measurements.append((force, end_to_end_x, final_time))
+            print(
+                f"  t_final = {final_time:g}, "
+                f"distancia en +x = {end_to_end_x:g}"
+            )
+    finally:
+        config_file.write_text(original_config)
 
 
-    # with summary_file.open("w", newline="") as file:
-    #     writer = csv.writer(file)
-    #     writer.writerow(("force", "end_to_end_x", "final_time"))
-    #     writer.writerows(measurements)
+    with summary_file.open("w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(("force", "end_to_end_x", "final_time"))
+        writer.writerows(measurements)
 
-    # measured_forces = [row[0] for row in measurements]
-    # distances = [row[1] for row in measurements]
+    measured_forces = [row[0] for row in measurements]
+    distances = [row[1] for row in measurements]
 
-    # Leer los datos de la tabla de resultados
-    with summary_file.open(newline="") as file:
-        rows = list(csv.DictReader(file))
+    # # Leer los datos de la tabla de resultados, COMENTAR SI VAS A EJECUTAR LA SIMULACION
+    # with summary_file.open(newline="") as file:
+    #     rows = list(csv.DictReader(file))
 
-    measured_forces = np.array([float(row["force"]) for row in rows])
-    distances = np.array([float(row["end_to_end_x"]) for row in rows])
+
+    # measured_forces = np.array([float(row["force"]) for row in rows])
+    # distances = np.array([float(row["end_to_end_x"]) for row in rows])
 
     #Funcion de langevin teorica
     N= int(float(config_values["N"]))
@@ -156,18 +157,21 @@ def main():
     kBT = float(config_values["kBT"])
     ke = float(config_values["ke"])
 
-    
+
 
     x = np.array(measured_forces) * l0 / kBT
-    Langevin = N * l0 * (1 / np.tanh(x) - 1 / x)
+    Langevin = l0 * (1 / np.tanh(x) - 1 / x)
 
-    
+    Langevin_F = l0 * (1 / np.tanh(x) - 1 / x) + x / l0 * kBT / ke
+
+
     figure_file = figures_folder / f"polymer_end_to_end_vs_force_k_{ke:g}.png"
 
     plt.figure(figsize=(8, 5))
-    plt.plot(measured_forces, distances, marker=".", linestyle="None", label="Datos simulados", color="blue")
+    plt.plot(measured_forces, distances/(N-1), marker=".", linestyle="None", label="Datos simulados", color="blue")
+    plt.plot(measured_forces, Langevin_F, label="Función de Langevin con elasticidad", color="green")
     plt.xlabel("Fuerza aplicada")
-    plt.ylabel("$R_{ee}(x)$")
+    plt.ylabel("$R_{ee}(x)/(N-1)$")
     plt.title("Extensión del polímero en función de la fuerza\n"
               f"$N={N:g}, l_0={l0:g}, k_e={ke:g}$")
     plt.plot(measured_forces, Langevin, label="Función de Langevin", color="orange")
@@ -176,6 +180,8 @@ def main():
     plt.tight_layout()
     plt.savefig(figure_file, dpi=200)
     plt.close()
+
+
 
     print(f"Tabla guardada en: {summary_file}")
     print(f"Gráfica guardada en: {figure_file}")
