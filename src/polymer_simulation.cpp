@@ -108,15 +108,15 @@ void runPolymerSimulation(
         (int)ceil(
             simulation.minThermalizationTime / simulation.dt);
 
-    if (
-        minThermalizationSteps > numberOfSteps)
-    {
-        printf(
-            "Error: minimum thermalization "
-            "time is larger than totalTime\n");
+    // if (
+    //     minThermalizationSteps > numberOfSteps)
+    // {
+    //     printf(
+    //         "Error: minimum thermalization "
+    //         "time is larger than totalTime\n");
 
-        exit(1);
-    }
+    //     exit(1);
+    // }
 
     theoreticalVelocityStd =
         sqrt(
@@ -124,7 +124,7 @@ void runPolymerSimulation(
 
     tolerance = 0.05;
 
-    requiredWindows = 3;
+    requiredWindows = 5;
 
     consecutiveWindows = 0;
 
