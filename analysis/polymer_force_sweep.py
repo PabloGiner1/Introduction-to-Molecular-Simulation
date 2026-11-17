@@ -166,9 +166,10 @@ def main():
 
 
     figure_file = figures_folder / f"polymer_end_to_end_vs_force_k_{ke:g}.png"
+    distances_N=np.array(distances)/(N-1)
 
     plt.figure(figsize=(8, 5))
-    plt.plot(measured_forces, distances/(N-1), marker=".", linestyle="None", label="Datos simulados", color="blue")
+    plt.plot(measured_forces, distances_N, marker=".", linestyle="None", label="Datos simulados", color="blue")
     plt.plot(measured_forces, Langevin_F, label="Función de Langevin con elasticidad", color="green")
     plt.xlabel("Fuerza aplicada")
     plt.ylabel("$R_{ee}(x)/(N-1)$")
