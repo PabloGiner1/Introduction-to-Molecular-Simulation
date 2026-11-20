@@ -14,7 +14,6 @@ final radius of gyration = 11.892366
 <radius of gyration squared> = 129.542893
 <end-to-end distance> = 37.952221
 <end-to-end distance squared> = 1453.734174
-Center-of-mass diffusion coefficient = 0.001151
 
 <Ekin> experimental = 94.547258
 <Ekin> theoretical = 94.500000
