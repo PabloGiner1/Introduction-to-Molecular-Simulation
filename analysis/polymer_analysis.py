@@ -6,6 +6,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 
+from polymer_metrics import compute_time_averaged_msd
+
+
 project_root = Path(
     __file__
 ).resolve().parents[1]
@@ -1275,6 +1278,43 @@ center_of_mass_displacement = (
     - center_of_mass_t[0]
 )
 
+com_lag_indices, com_msd = (
+    compute_time_averaged_msd(
+        center_of_mass_t
+    )
+)
+
+com_lag_times = np.array([
+    np.mean(
+        time[lag:]
+        - time[:-lag]
+    )
+    for lag in com_lag_indices
+])
+
+diffusion_fit_mask = (
+    (com_lag_times >= 0.2 * com_lag_times[-1])
+    & (com_lag_times <= 0.8 * com_lag_times[-1])
+)
+
+if np.count_nonzero(diffusion_fit_mask) < 2:
+
+    raise RuntimeError(
+        "No hay suficientes retardos para ajustar "
+        "la difusion del centro de masas."
+    )
+
+diffusion_slope, diffusion_intercept = np.polyfit(
+    com_lag_times[diffusion_fit_mask],
+    com_msd[diffusion_fit_mask],
+    1
+)
+
+center_of_mass_diffusion_coefficient = float(
+    diffusion_slope / 6.0
+)
+
+
 bond_length_sq_theory = float(
     np.trapezoid(
         (l_grid ** 2)
@@ -1336,6 +1376,8 @@ summary_text = (
     f"<radius of gyration squared> = {mean_rg2:.6f}\n"
     f"<end-to-end distance> = {mean_ree:.6f}\n"
     f"<end-to-end distance squared> = {mean_ree2:.6f}\n"
+    f"Center-of-mass diffusion coefficient = "
+    f"{center_of_mass_diffusion_coefficient:.6f}\n"
     "\n"
     f"<Ekin> experimental = {mean_kinetic:.6f}\n"
     f"<Ekin> theoretical = {kinetic_theory:.6f}\n"
@@ -1633,6 +1675,128 @@ plt.tight_layout()
 plt.savefig(
     figures_folder
     / "polymer_center_of_mass.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.close()
+
+
+fig = plt.figure(
+    figsize=(9, 7)
+)
+
+ax = fig.add_subplot(
+    111,
+    projection="3d"
+)
+
+trajectory_plot = ax.scatter(
+    center_of_mass_displacement[:, 0],
+    center_of_mass_displacement[:, 1],
+    center_of_mass_displacement[:, 2],
+    c=time,
+    cmap="viridis",
+    s=8
+)
+
+ax.plot(
+    center_of_mass_displacement[:, 0],
+    center_of_mass_displacement[:, 1],
+    center_of_mass_displacement[:, 2],
+    alpha=0.45,
+    linewidth=0.8
+)
+
+ax.scatter(
+    0.0,
+    0.0,
+    0.0,
+    color="green",
+    marker="o",
+    s=45,
+    label="Inicio"
+)
+
+ax.scatter(
+    center_of_mass_displacement[-1, 0],
+    center_of_mass_displacement[-1, 1],
+    center_of_mass_displacement[-1, 2],
+    color="red",
+    marker="x",
+    s=55,
+    label="Final"
+)
+
+colorbar = fig.colorbar(
+    trajectory_plot,
+    ax=ax,
+    pad=0.1
+)
+
+colorbar.set_label(
+    "Tiempo $t$"
+)
+
+ax.set_xlabel(
+    "$R_{CM,x}(t)-R_{CM,x}(0)$"
+)
+
+ax.set_ylabel(
+    "$R_{CM,y}(t)-R_{CM,y}(0)$"
+)
+
+ax.set_zlabel(
+    "$R_{CM,z}(t)-R_{CM,z}(0)$"
+)
+
+ax.set_title(
+    "Difusión 3D del centro de masas"
+)
+
+ax.legend()
+
+path_ranges = np.ptp(
+    center_of_mass_displacement,
+    axis=0
+)
+
+path_half_range = max(
+    float(np.max(path_ranges)) / 2.0,
+    1.0e-12
+)
+
+path_midpoint = (
+    np.max(
+        center_of_mass_displacement,
+        axis=0
+    )
+    + np.min(
+        center_of_mass_displacement,
+        axis=0
+    )
+) / 2.0
+
+ax.set_xlim(
+    path_midpoint[0] - path_half_range,
+    path_midpoint[0] + path_half_range
+)
+
+ax.set_ylim(
+    path_midpoint[1] - path_half_range,
+    path_midpoint[1] + path_half_range
+)
+
+ax.set_zlim(
+    path_midpoint[2] - path_half_range,
+    path_midpoint[2] + path_half_range
+)
+
+plt.tight_layout()
+
+plt.savefig(
+    figures_folder
+    / "polymer_com_diffusion_3d.png",
     dpi=300,
     bbox_inches="tight"
 )

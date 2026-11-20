@@ -8,6 +8,9 @@ import subprocess
 import matplotlib.pyplot as plt
 import numpy as np
 
+from polymer_metrics import compute_time_averaged_msd
+
+
 project_root = Path(
     __file__
 ).resolve().parents[1]
@@ -632,6 +635,56 @@ try:
             axis=1
         )
 
+        center_of_mass_displacement = (
+            center_of_mass
+            - center_of_mass[0]
+        )
+
+        com_lag_indices, com_msd = (
+            compute_time_averaged_msd(
+                center_of_mass
+            )
+        )
+
+        com_lag_times = np.array([
+            np.mean(
+                time[lag:]
+                - time[:-lag]
+            )
+            for lag in com_lag_indices
+        ])
+
+        diffusion_fit_mask = (
+            (com_lag_times >= 0.2 * com_lag_times[-1])
+            & (com_lag_times <= 0.8 * com_lag_times[-1])
+        )
+
+        if np.count_nonzero(diffusion_fit_mask) < 2:
+
+            raise RuntimeError(
+                "No hay suficientes retardos para ajustar "
+                f"la difusion del centro de masas en N={N}."
+            )
+
+        diffusion_slope, diffusion_intercept = np.polyfit(
+            com_lag_times[diffusion_fit_mask],
+            com_msd[diffusion_fit_mask],
+            1
+        )
+
+        center_of_mass_diffusion_coefficient = float(
+            diffusion_slope / 6.0
+        )
+
+        diffusion_fit_start_time = float(
+            com_lag_times[diffusion_fit_mask][0]
+        )
+
+        diffusion_fit_end_time = float(
+            com_lag_times[diffusion_fit_mask][-1]
+        )
+
+
         centered_coordinates = (
             coordinates
             - center_of_mass[:, np.newaxis, :]
@@ -697,11 +750,6 @@ try:
         ree2_theory = (
             (N - 1)
             * bond_length_sq_theory
-        )
-
-        center_of_mass_displacement = (
-            center_of_mass
-            - center_of_mass[0]
         )
 
         case_figures_folder = (
@@ -824,6 +872,129 @@ try:
         plt.savefig(
             case_figures_folder
             / f"polymer_radius_of_gyration_N_{N}.png",
+            dpi=300,
+            bbox_inches="tight"
+        )
+
+        plt.close()
+
+
+        fig = plt.figure(
+            figsize=(9, 7)
+        )
+
+        ax = fig.add_subplot(
+            111,
+            projection="3d"
+        )
+
+        trajectory_plot = ax.scatter(
+            center_of_mass_displacement[:, 0],
+            center_of_mass_displacement[:, 1],
+            center_of_mass_displacement[:, 2],
+            c=time,
+            cmap="viridis",
+            s=8
+        )
+
+        ax.plot(
+            center_of_mass_displacement[:, 0],
+            center_of_mass_displacement[:, 1],
+            center_of_mass_displacement[:, 2],
+            alpha=0.45,
+            linewidth=0.8
+        )
+
+        ax.scatter(
+            0.0,
+            0.0,
+            0.0,
+            color="green",
+            marker="o",
+            s=45,
+            label="Inicio"
+        )
+
+        ax.scatter(
+            center_of_mass_displacement[-1, 0],
+            center_of_mass_displacement[-1, 1],
+            center_of_mass_displacement[-1, 2],
+            color="red",
+            marker="x",
+            s=55,
+            label="Final"
+        )
+
+        colorbar = fig.colorbar(
+            trajectory_plot,
+            ax=ax,
+            pad=0.1
+        )
+
+        colorbar.set_label(
+            "Tiempo de producción $t$"
+        )
+
+        ax.set_xlabel(
+            "$R_{CM,x}(t)-R_{CM,x}(0)$"
+        )
+
+        ax.set_ylabel(
+            "$R_{CM,y}(t)-R_{CM,y}(0)$"
+        )
+
+        ax.set_zlabel(
+            "$R_{CM,z}(t)-R_{CM,z}(0)$"
+        )
+
+        ax.set_title(
+            "Difusión 3D del centro de masas "
+            f"($N={N}$)"
+        )
+
+        ax.legend()
+
+        path_ranges = np.ptp(
+            center_of_mass_displacement,
+            axis=0
+        )
+
+        path_half_range = max(
+            float(np.max(path_ranges)) / 2.0,
+            1.0e-12
+        )
+
+        path_midpoint = (
+            np.max(
+                center_of_mass_displacement,
+                axis=0
+            )
+            + np.min(
+                center_of_mass_displacement,
+                axis=0
+            )
+        ) / 2.0
+
+        ax.set_xlim(
+            path_midpoint[0] - path_half_range,
+            path_midpoint[0] + path_half_range
+        )
+
+        ax.set_ylim(
+            path_midpoint[1] - path_half_range,
+            path_midpoint[1] + path_half_range
+        )
+
+        ax.set_zlim(
+            path_midpoint[2] - path_half_range,
+            path_midpoint[2] + path_half_range
+        )
+
+        plt.tight_layout()
+
+        plt.savefig(
+            case_figures_folder
+            / f"polymer_com_diffusion_3d_N_{N}.png",
             dpi=300,
             bbox_inches="tight"
         )
@@ -1168,6 +1339,15 @@ try:
             "mean_rg2":
                 mean_rg2,
 
+            "center_of_mass_diffusion_coefficient":
+                center_of_mass_diffusion_coefficient,
+
+            "diffusion_fit_start_time":
+                diffusion_fit_start_time,
+
+            "diffusion_fit_end_time":
+                diffusion_fit_end_time,
+
             "equilibrium_sample_count":
                 equilibrium_sample_count,
 
@@ -1384,6 +1564,21 @@ for result in results:
         "mean_rg2":
             result[
                 "mean_rg2"
+            ],
+
+        "center_of_mass_diffusion_coefficient":
+            result[
+                "center_of_mass_diffusion_coefficient"
+            ],
+
+        "diffusion_fit_start_time":
+            result[
+                "diffusion_fit_start_time"
+            ],
+
+        "diffusion_fit_end_time":
+            result[
+                "diffusion_fit_end_time"
             ],
 
         "equilibrium_sample_count":
@@ -2173,6 +2368,14 @@ scaling_summary_file.write_text(
     f"Exponente ajustado nu = {nu_fit:.6f}\n"
     "Exponente esperado para cadena ideal = 0.5\n"
     f"Diferencia respecto a 0.5 = {nu_difference:.6f}\n"
+    "Difusion del centro de masas (D_CM = pendiente MSD/6):\n"
+    + "".join(
+        f"  N={result['N']}: "
+        f"D_CM={result['center_of_mass_diffusion_coefficient']:.8g}, "
+        f"ajuste en tau=[{result['diffusion_fit_start_time']:.6g}, "
+        f"{result['diffusion_fit_end_time']:.6g}]\n"
+        for result in results
+    )
     + f"Conclusión: {scaling_conclusion}\n"
 )
 
@@ -2194,6 +2397,20 @@ print(
 print(
     f"  diferencia respecto a 0.5 = {nu_difference:.4f}"
 )
+
+print(
+    "  D_CM estimado por N:"
+)
+
+for result in results:
+
+    print(
+        f"    N={result['N']}: "
+        f"{result['center_of_mass_diffusion_coefficient']:.6g} "
+        f"(ajuste tau="
+        f"{result['diffusion_fit_start_time']:.4g}–"
+        f"{result['diffusion_fit_end_time']:.4g})"
+    )
 
 print(
     "  nu esperado (cadena ideal) = 0.5"
