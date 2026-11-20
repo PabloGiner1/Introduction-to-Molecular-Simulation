@@ -2437,18 +2437,40 @@ plt.figure(
     figsize=(8, 5)
 )
 
+rg2_experimental_slope = float(
+    np.polyfit(
+        N_plot,
+        rg2_mean,
+        1
+    )[0]
+)
+
+rg2_theoretical_slope = float(
+    np.polyfit(
+        N_plot,
+        rg2_theory_arr,
+        1
+    )[0]
+)
+
 plt.plot(
     N_plot,
     rg2_mean,
     marker="o",
-    label=r"Simulación $\langle R_G^2\rangle$"
+    label=(
+        r"Simulación $\langle R_G^2\rangle$ "
+        rf"(pendiente = {rg2_experimental_slope:.3f})"
+    )
 )
 
 plt.plot(
     N_plot,
     rg2_theory_arr,
     linestyle="--",
-    label=r"Cadena ideal $\frac{N^2-1}{6N}\langle l^2\rangle$"
+    label=(
+        r"Cadena ideal $\frac{N^2-1}{6N}\langle l^2\rangle$ "
+        rf"(pendiente = {rg2_theoretical_slope:.3f})"
+    )
 )
 
 plt.xlabel(
