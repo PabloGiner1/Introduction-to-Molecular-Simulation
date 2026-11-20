@@ -5,21 +5,28 @@ ke = 100.0
 l0 = 1.0
 kBT = 1.0
 eta = 1.0
-h = 0.005
+h = 0.001
 
-<Ekin> experimental = 96.017250
-<Ekin> theoretical = 96.000000
-<Ekin>/N experimental = 1.500270
-<Ekin>/N theoretical = 1.500000
-relative error = 0.018 %
+Center of mass (final) = (19.412562, 2.590953, 0.964488)
+<radius of gyration> = 11.325843
+std radius of gyration = 1.126137
+final radius of gyration = 11.892366
+<radius of gyration squared> = 129.542893
+<end-to-end distance> = 37.952221
+<end-to-end distance squared> = 1453.734174
+Center-of-mass diffusion coefficient = 0.001151
 
-<Eelastic> experimental = 32.148165
+<Ekin> experimental = 94.547258
+<Ekin> theoretical = 94.500000
+relative error = 0.050 %
+
+<Eelastic> experimental = 34.417748
 <Eelastic> theoretical = 32.123762
-<Eelastic>/N experimental = 0.502315
+<Eelastic>/N experimental = 0.537777
 <Eelastic>/N theoretical = 0.501934
-relative error = 0.076 %
+relative error = 7.141 %
 
-<bond length> experimental = 1.019697
+<bond length> experimental = 1.032099
 <bond length> theoretical = 1.019802
-relative error = 0.010 %
-std bond length = 0.099085
+relative error = 1.206 %
+std bond length = 0.099478

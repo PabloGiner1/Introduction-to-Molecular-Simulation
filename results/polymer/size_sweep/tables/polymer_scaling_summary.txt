@@ -1,0 +1,16 @@
+COMPROBACION DE LA LEY DE ESCALA DEL POLIMERO
+
+N evaluados = 4, 8, 16, 32, 64
+Tiempo inicial descartado = 2000.000000
+Promedio calculado solo en el regimen posterior al descarte.
+<Rg^2> medio por N = 0.66100972, 1.38234881, 2.67827550, 5.36924947, 11.07446710
+Exponente ajustado nu = 0.504522
+Exponente esperado para cadena ideal = 0.5
+Diferencia respecto a 0.5 = 0.004522
+Difusion del centro de masas (D_CM = pendiente MSD/6):
+  N=4: D_CM=1.0234052e-06, ajuste en tau=[505, 1995]
+  N=8: D_CM=-4.2886753e-06, ajuste en tau=[505, 1995]
+  N=16: D_CM=1.8451587e-05, ajuste en tau=[505, 1995]
+  N=32: D_CM=0.00028020427, ajuste en tau=[505, 1995]
+  N=64: D_CM=0.0016374365, ajuste en tau=[505, 1995]
+Conclusión: El exponente ajustado es compatible con nu = 0.5, esperado para una cadena ideal tipo random walk.

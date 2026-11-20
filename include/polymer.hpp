@@ -67,4 +67,34 @@ void runPolymerSimulation(
     PolymerParameters polymer,
     char outputFile[]);
 
+// Calcula la posición del centro de masas (cmX, cmY, cmZ)
+void polymerCenterOfMass(
+    double x[],
+    double y[],
+    double z[],
+    double *cmX,
+    double *cmY,
+    double *cmZ,
+    PolymerParameters polymer);
+
+// Calcula el radio de giro al cuadrado (Rg^2) y el radio de giro (Rg)
+double polymerRadiusOfGyrationSquared(
+    double x[],
+    double y[],
+    double z[],
+    PolymerParameters polymer);
+
+double polymerRadiusOfGyration(
+    double x[],
+    double y[],
+    double z[],
+    PolymerParameters polymer);
+
+// Calcula la distancia de extremo a extremo (Ree)
+double polymerEndToEndDistance(
+    double x[],
+    double y[],
+    double z[],
+    PolymerParameters polymer);
+
 #endif

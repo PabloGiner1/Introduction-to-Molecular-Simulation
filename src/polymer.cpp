@@ -279,3 +279,87 @@ void polymerGJFStep(
         vz[i] = vzNew[i];
     }
 }
+
+void polymerCenterOfMass(
+    double x[],
+    double y[],
+    double z[],
+    double *cmX,
+    double *cmY,
+    double *cmZ,
+    PolymerParameters polymer)
+{
+    double sumX = 0.0;
+    double sumY = 0.0;
+    double sumZ = 0.0;
+
+    for (int i = 0; i < polymer.N; i++)
+    {
+        sumX += x[i];
+        sumY += y[i];
+        sumZ += z[i];
+    }
+
+    // Todos los monómeros tienen la misma masa
+    *cmX = sumX / polymer.N;
+    *cmY = sumY / polymer.N;
+    *cmZ = sumZ / polymer.N;
+}
+
+
+double polymerRadiusOfGyrationSquared(
+    double x[],
+    double y[],
+    double z[],
+    PolymerParameters polymer)
+{
+    double cmX;
+    double cmY;
+    double cmZ;
+
+    double dx;
+    double dy;
+    double dz;
+
+    double sumSquaredDistances = 0.0;
+
+    // 1. Obtenemos el centro de masas actual
+    polymerCenterOfMass(x, y, z, &cmX, &cmY, &cmZ, polymer);
+
+    // 2. Sumamos las distancias al cuadrado respecto al centro de masas
+    for (int i = 0; i < polymer.N; i++)
+    {
+        dx = x[i] - cmX;
+        dy = y[i] - cmY;
+        dz = z[i] - cmZ;
+
+        sumSquaredDistances += (dx * dx + dy * dy + dz * dz);
+    }
+
+    return sumSquaredDistances / polymer.N;
+}
+
+
+double polymerRadiusOfGyration(
+    double x[],
+    double y[],
+    double z[],
+    PolymerParameters polymer)
+{
+    return sqrt(polymerRadiusOfGyrationSquared(x, y, z, polymer));
+}
+
+
+double polymerEndToEndDistance(
+    double x[],
+    double y[],
+    double z[],
+    PolymerParameters polymer)
+{
+    int last = polymer.N - 1;
+
+    double dx = x[last] - x[0];
+    double dy = y[last] - y[0];
+    double dz = z[last] - z[0];
+    return sqrt(dx * dx + dy * dy + dz * dz);
+}

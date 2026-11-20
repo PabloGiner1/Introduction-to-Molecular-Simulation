@@ -108,6 +108,14 @@ Script de Python para analizar los datos de una ejecución y generar estadístic
 
 Ejecuta el análisis detallado del doble pozo para cada combinación de `A = 0.5, 1.0, 2.0`, `eta = 0.01, 0.1, 1.0, 2.0, 5.0` y posición inicial `x0 = -1, 0, 1`, usando el algoritmo, el paso temporal y el tiempo total definidos en `config/simulation.txt`. Produce 45 simulaciones y guarda sus gráficas en `results/double_well/parameter_sweep/single_run/figures/`, separadas por `A` y `eta`, sin mezclarlas con `single_run` normal. Esa carpeta se limpia al iniciar cada barrido, por lo que las salidas anteriores del barrido se reemplazan. Los nombres de las gráficas incluyen algoritmo, `x0` y fecha, sin `eta` ni `h`. El archivo de configuración se restaura al terminar. En VS Code se puede iniciar desde la configuración de lanzamiento o la tarea `Barrido detallado pozo doble: A, eta y x0`; ambas compilan primero la simulación.
 
+## `analysis/polymer_analysis.py`
+
+La tarea `Polimero: Simular y analizar` genera la captura 3D del polímero con las coordenadas centradas en su centro de masas, la trayectoria 3D del desplazamiento del centro de masas y su MSD frente al retardo. El ajuste lineal del MSD informa `D_CM` usando `MSD = 6 D_CM tau` para difusión tridimensional.
+
+## `analysis/polymer_size_sweep.py`
+
+La tarea de VS Code `Polimero: Barrido numero de particulas` compila y ejecuta cinco simulaciones independientes, con semillas distintas, para `N = 4, 8, 16, 32, 64`. Para el promedio estructural se descartan los primeros `2000` de tiempo de producción (`production_burn_in_time`), además de la termalización que realiza el simulador antes de guardar la trayectoria. Las medias de `Rg^2` se calculan solo con las muestras restantes. Guarda `polymer_rg2_vs_N.png` para representar `<Rg^2>` frente a `N` en escala lineal y `polymer_rg_scaling_loglog.png` para ajustar `sqrt(<Rg^2>) ~ N^nu` en escala log-log. El valor ajustado de `nu`, su comparación con el valor ideal `0.5` y una conclusión basada en el ajuste se guardan en `results/polymer/size_sweep/tables/polymer_scaling_summary.txt`. Cada ejecución guarda sus gráficas y datos brutos en carpetas separadas `N_4`, `N_8`, `N_16`, `N_32` y `N_64`; la gráfica de radio de giro señala el tramo descartado y el comienzo del promedio. La difusión del centro de masas se visualiza con una trayectoria 3D relativa a la posición inicial y el MSD temporal frente al retardo; la pendiente ajustada del MSD da `6 D_CM`. También se genera una captura 3D de la conformación final tras restar el centro de masas, centrada en el origen.
+
 ## `data/raw/`
 
 Contiene los archivos generados directamente por las simulaciones en C++.

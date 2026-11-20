@@ -1,13 +1,14 @@
 from pathlib import Path
 
 import csv
-import os
 import secrets
 import shutil
 import subprocess
 
 import matplotlib.pyplot as plt
 import numpy as np
+
+from polymer_metrics import compute_time_averaged_msd
 
 
 project_root = Path(
@@ -87,15 +88,13 @@ raw_folder.mkdir(
 )
 
 
-if os.name == "nt":
+simulation_program = (
+    project_root
+    / "bin"
+    / "simulation.exe"
+)
 
-    simulation_program = (
-        project_root
-        / "bin"
-        / "simulation.exe"
-    )
-
-else:
+if not simulation_program.exists():
 
     simulation_program = (
         project_root
@@ -149,13 +148,22 @@ total_time = 10000.0
 min_thermalization_time = 2000.0
 
 
+# Se descarta esta parte inicial de la producción para
+# permitir que se relaje la conformación de la cadena.
+production_burn_in_time = 2000.0
+
+
 max_saved_points = 10000
 
-
-# Número de bloques para estimar
-# las incertidumbres.
-
 number_of_blocks = 10
+
+
+if not 0.0 <= production_burn_in_time < total_time:
+
+    raise ValueError(
+        "El tiempo de descarte debe ser no negativo "
+        "y menor que el tiempo de produccion."
+    )
 
 
 # ===================================
@@ -195,20 +203,17 @@ def parse_key_values(text):
 
 def integrate(y, x):
 
-    if hasattr(
-        np,
-        "trapezoid"
-    ):
-
+    try:
         return np.trapezoid(
             y,
             x
         )
 
-    return np.trapz(
-        y,
-        x
-    )
+    except AttributeError:
+        return np.trapz(
+            y,
+            x
+        )
 
 
 def block_standard_error(
@@ -353,6 +358,16 @@ bond_length_theory = float(
 )
 
 
+bond_length_sq_theory = float(
+    integrate(
+        (l_grid ** 2)
+        * bond_weight,
+        l_grid
+    )
+    / bond_normalization
+)
+
+
 elastic_per_bond_theory = float(
     integrate(
         bond_potential
@@ -484,6 +499,17 @@ try:
         )
 
 
+        with data_file.open(
+            newline=""
+        ) as file:
+
+            column_names = next(
+                csv.reader(
+                    file
+                )
+            )
+
+
         data = np.loadtxt(
             data_file,
             delimiter=",",
@@ -520,6 +546,27 @@ try:
             ]
         )
 
+        equilibrium_mask = (
+            time >= production_burn_in_time
+        )
+
+
+        equilibrium_sample_count = int(
+            np.count_nonzero(
+                equilibrium_mask
+            )
+        )
+
+
+        if equilibrium_sample_count < 2:
+
+            raise RuntimeError(
+                "No hay suficientes muestras después del "
+                f"descarte inicial para N={N}. "
+                f"Tiempo de descarte={production_burn_in_time:g}, "
+                f"tiempo de producción={time[-1]:g}."
+            )
+
 
         kinetic = (
             data[
@@ -537,10 +584,41 @@ try:
         )
 
 
+        required_coordinate_names = [
+            f"{axis}{monomer}"
+            for monomer in range(N)
+            for axis in ("x", "y", "z")
+        ]
+
+
+        missing_coordinate_names = [
+            name
+            for name in required_coordinate_names
+            if name not in column_names
+        ]
+
+
+        if missing_coordinate_names:
+
+            raise RuntimeError(
+                "Faltan columnas de coordenadas "
+                f"para N={N}: "
+                f"{', '.join(missing_coordinate_names)}"
+            )
+
+
+        coordinate_columns = [
+            column_names.index(
+                name
+            )
+            for name in required_coordinate_names
+        ]
+
+
         coordinates = (
             data[
                 :,
-                3:
+                coordinate_columns
             ]
             .reshape(
                 len(
@@ -552,7 +630,526 @@ try:
         )
 
 
-        # ===================================
+        center_of_mass = np.mean(
+            coordinates,
+            axis=1
+        )
+
+        center_of_mass_displacement = (
+            center_of_mass
+            - center_of_mass[0]
+        )
+
+        com_lag_indices, com_msd = (
+            compute_time_averaged_msd(
+                center_of_mass
+            )
+        )
+
+        com_lag_times = np.array([
+            np.mean(
+                time[lag:]
+                - time[:-lag]
+            )
+            for lag in com_lag_indices
+        ])
+
+        diffusion_fit_mask = (
+            (com_lag_times >= 0.2 * com_lag_times[-1])
+            & (com_lag_times <= 0.8 * com_lag_times[-1])
+        )
+
+        if np.count_nonzero(diffusion_fit_mask) < 2:
+
+            raise RuntimeError(
+                "No hay suficientes retardos para ajustar "
+                f"la difusion del centro de masas en N={N}."
+            )
+
+        diffusion_slope, diffusion_intercept = np.polyfit(
+            com_lag_times[diffusion_fit_mask],
+            com_msd[diffusion_fit_mask],
+            1
+        )
+
+        center_of_mass_diffusion_coefficient = float(
+            diffusion_slope / 6.0
+        )
+
+        diffusion_fit_start_time = float(
+            com_lag_times[diffusion_fit_mask][0]
+        )
+
+        diffusion_fit_end_time = float(
+            com_lag_times[diffusion_fit_mask][-1]
+        )
+
+
+        centered_coordinates = (
+            coordinates
+            - center_of_mass[:, np.newaxis, :]
+        )
+
+
+        rg2_trajectory = np.mean(
+            np.sum(
+                centered_coordinates ** 2,
+                axis=2
+            ),
+            axis=1
+        )
+
+
+        ree2_trajectory = np.sum(
+            (
+                coordinates[:, -1, :]
+                - coordinates[:, 0, :]
+            ) ** 2,
+            axis=1
+        )
+
+
+        mean_rg2 = float(
+            np.mean(
+                rg2_trajectory[
+                    equilibrium_mask
+                ]
+            )
+        )
+
+        rg_trajectory = np.sqrt(
+            rg2_trajectory
+        )
+
+
+        mean_rg = float(
+            np.mean(
+                rg_trajectory[
+                    equilibrium_mask
+                ]
+            )
+        )
+
+
+        mean_ree2 = float(
+            np.mean(
+                ree2_trajectory[
+                    equilibrium_mask
+                ]
+            )
+        )
+
+
+        rg2_theory = (
+            (N ** 2 - 1)
+            / (6.0 * N)
+            * bond_length_sq_theory
+        )
+
+
+        ree2_theory = (
+            (N - 1)
+            * bond_length_sq_theory
+        )
+
+        case_figures_folder = (
+            figures_folder
+            / f"N_{N}"
+        )
+
+        case_figures_folder.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+
+        plt.figure(
+            figsize=(9, 6)
+        )
+
+
+        for axis_index, axis_label in enumerate(("x", "y", "z")):
+
+            plt.plot(
+                time,
+                center_of_mass_displacement[:, axis_index],
+                label=(
+                    f"$R_{{CM,{axis_label}}}(t)"
+                    f"-R_{{CM,{axis_label}}}(0)$"
+                )
+            )
+
+
+        plt.xlabel(
+            "Tiempo de producción $t$"
+        )
+
+        plt.ylabel(
+            "Desplazamiento del centro de masas"
+        )
+
+        plt.title(
+            f"Centro de masas del polímero ($N={N}$)"
+        )
+
+        plt.grid(
+            True,
+            alpha=0.3
+        )
+
+        plt.legend()
+
+        plt.tight_layout()
+
+        plt.savefig(
+            case_figures_folder
+            / f"polymer_center_of_mass_N_{N}.png",
+            dpi=300,
+            bbox_inches="tight"
+        )
+
+        plt.close()
+
+
+        plt.figure(
+            figsize=(9, 6)
+        )
+
+        plt.plot(
+            time,
+            rg_trajectory,
+            label=(
+                f"$R_g(t)$ "
+                f"($\\langle R_g\\rangle={mean_rg:.4f}$)"
+            )
+        )
+
+        plt.axhline(
+            mean_rg,
+            linestyle="--",
+            label=f"$\\langle R_g\\rangle={mean_rg:.4f}$"
+        )
+
+        plt.axvspan(
+            time[0],
+            production_burn_in_time,
+            color="gray",
+            alpha=0.15,
+            label="Tramo descartado"
+        )
+
+        plt.axvline(
+            production_burn_in_time,
+            color="gray",
+            linestyle=":",
+            label=(
+                "Inicio del promedio: "
+                f"$t={production_burn_in_time:g}$"
+            )
+        )
+
+        plt.xlabel(
+            "Tiempo de producción $t$"
+        )
+
+        plt.ylabel(
+            "Radio de giro $R_g$"
+        )
+
+        plt.title(
+            f"Radio de giro del polímero ($N={N}$)"
+        )
+
+        plt.grid(
+            True,
+            alpha=0.3
+        )
+
+        plt.legend()
+
+        plt.tight_layout()
+
+        plt.savefig(
+            case_figures_folder
+            / f"polymer_radius_of_gyration_N_{N}.png",
+            dpi=300,
+            bbox_inches="tight"
+        )
+
+        plt.close()
+
+
+        fig = plt.figure(
+            figsize=(9, 7)
+        )
+
+        ax = fig.add_subplot(
+            111,
+            projection="3d"
+        )
+
+        trajectory_plot = ax.scatter(
+            center_of_mass_displacement[:, 0],
+            center_of_mass_displacement[:, 1],
+            center_of_mass_displacement[:, 2],
+            c=time,
+            cmap="viridis",
+            s=8
+        )
+
+        ax.plot(
+            center_of_mass_displacement[:, 0],
+            center_of_mass_displacement[:, 1],
+            center_of_mass_displacement[:, 2],
+            alpha=0.45,
+            linewidth=0.8
+        )
+
+        ax.scatter(
+            0.0,
+            0.0,
+            0.0,
+            color="green",
+            marker="o",
+            s=45,
+            label="Inicio"
+        )
+
+        ax.scatter(
+            center_of_mass_displacement[-1, 0],
+            center_of_mass_displacement[-1, 1],
+            center_of_mass_displacement[-1, 2],
+            color="red",
+            marker="x",
+            s=55,
+            label="Final"
+        )
+
+        colorbar = fig.colorbar(
+            trajectory_plot,
+            ax=ax,
+            pad=0.1
+        )
+
+        colorbar.set_label(
+            "Tiempo de producción $t$"
+        )
+
+        ax.set_xlabel(
+            "$R_{CM,x}(t)-R_{CM,x}(0)$"
+        )
+
+        ax.set_ylabel(
+            "$R_{CM,y}(t)-R_{CM,y}(0)$"
+        )
+
+        ax.set_zlabel(
+            "$R_{CM,z}(t)-R_{CM,z}(0)$"
+        )
+
+        ax.set_title(
+            "Difusión 3D del centro de masas "
+            f"($N={N}$)"
+        )
+
+        ax.legend()
+
+        path_ranges = np.ptp(
+            center_of_mass_displacement,
+            axis=0
+        )
+
+        path_half_range = max(
+            float(np.max(path_ranges)) / 2.0,
+            1.0e-12
+        )
+
+        path_midpoint = (
+            np.max(
+                center_of_mass_displacement,
+                axis=0
+            )
+            + np.min(
+                center_of_mass_displacement,
+                axis=0
+            )
+        ) / 2.0
+
+        ax.set_xlim(
+            path_midpoint[0] - path_half_range,
+            path_midpoint[0] + path_half_range
+        )
+
+        ax.set_ylim(
+            path_midpoint[1] - path_half_range,
+            path_midpoint[1] + path_half_range
+        )
+
+        ax.set_zlim(
+            path_midpoint[2] - path_half_range,
+            path_midpoint[2] + path_half_range
+        )
+
+        plt.tight_layout()
+
+        plt.savefig(
+            case_figures_folder
+            / f"polymer_com_diffusion_3d_N_{N}.png",
+            dpi=300,
+            bbox_inches="tight"
+        )
+
+        plt.close()
+
+
+        plt.figure(
+            figsize=(9, 6)
+        )
+
+        plt.plot(
+            com_lag_times,
+            com_msd,
+            marker="o",
+            markersize=3,
+            label="MSD temporal del centro de masas"
+        )
+
+        plt.plot(
+            com_lag_times[diffusion_fit_mask],
+            (
+                diffusion_slope
+                * com_lag_times[diffusion_fit_mask]
+                + diffusion_intercept
+            ),
+            linestyle="--",
+            label=(
+                f"Ajuste lineal: $D_{{CM}}="
+                f"{center_of_mass_diffusion_coefficient:.4g}$"
+            )
+        )
+
+        plt.xlabel(
+            "Retardo temporal $\\tau$"
+        )
+
+        plt.ylabel(
+            r"$\langle|\vec R_{CM}(t+\tau)-"
+            r"\vec R_{CM}(t)|^2\rangle_t$"
+        )
+
+        plt.title(
+            "Difusión del centro de masas en 3D "
+            f"($N={N}$, pendiente $=6D_{{CM}}$)"
+        )
+
+        plt.grid(
+            True,
+            alpha=0.3
+        )
+
+        plt.legend()
+
+        plt.tight_layout()
+
+        plt.savefig(
+            case_figures_folder
+            / f"polymer_com_msd_N_{N}.png",
+            dpi=300,
+            bbox_inches="tight"
+        )
+
+        plt.close()
+
+
+        final_coordinates_centered = (
+            coordinates[-1]
+            - center_of_mass[-1]
+        )
+
+        fig = plt.figure(
+            figsize=(8, 7)
+        )
+
+        ax = fig.add_subplot(
+            111,
+            projection="3d"
+        )
+
+        ax.plot(
+            final_coordinates_centered[:, 0],
+            final_coordinates_centered[:, 1],
+            final_coordinates_centered[:, 2],
+            marker="o",
+            markersize=5,
+            label=f"Cadena ($N={N}$)"
+        )
+
+        ax.scatter(
+            0.0,
+            0.0,
+            0.0,
+            color="red",
+            marker="x",
+            s=65,
+            label=r"$\vec R_{CM}=(0,0,0)$"
+        )
+
+        ax.set_xlabel(
+            "$x-R_{CM,x}$"
+        )
+
+        ax.set_ylabel(
+            "$y-R_{CM,y}$"
+        )
+
+        ax.set_zlabel(
+            "$z-R_{CM,z}$"
+        )
+
+        ax.set_title(
+            f"Conformación final centrada ($N={N}$)"
+        )
+
+        ax.legend()
+
+        coil_ranges = np.ptp(
+            final_coordinates_centered,
+            axis=0
+        )
+
+        coil_half_range = max(
+            float(np.max(coil_ranges)) / 2.0,
+            1.0e-12
+        )
+
+        ax.set_xlim(
+            -coil_half_range,
+            coil_half_range
+        )
+
+        ax.set_ylim(
+            -coil_half_range,
+            coil_half_range
+        )
+
+        ax.set_zlim(
+            -coil_half_range,
+            coil_half_range
+        )
+
+        plt.tight_layout()
+
+        plt.savefig(
+            case_figures_folder
+            / f"polymer_snapshot_3d_centered_N_{N}.png",
+            dpi=300,
+            bbox_inches="tight"
+        )
+
+        plt.close()
+
+
+        # ==========================
         # Energías
         # ===================================
 
@@ -793,10 +1390,37 @@ try:
                 bond_length_sem,
 
             "number_of_blocks":
-                kinetic_blocks,
+                bond_blocks,
 
             "block_size":
-                kinetic_block_size,
+                bond_block_size,
+
+            "mean_rg2":
+                mean_rg2,
+
+            "center_of_mass_diffusion_coefficient":
+                center_of_mass_diffusion_coefficient,
+
+            "diffusion_fit_start_time":
+                diffusion_fit_start_time,
+
+            "diffusion_fit_end_time":
+                diffusion_fit_end_time,
+
+            "equilibrium_sample_count":
+                equilibrium_sample_count,
+
+            "mean_rg":
+                mean_rg,
+
+            "rg2_theory":
+                rg2_theory,
+
+            "mean_ree2":
+                mean_ree2,
+
+            "ree2_theory":
+                ree2_theory,
 
             "thermalization_time":
                 float(
@@ -811,6 +1435,9 @@ try:
                         "savedDt"
                     ]
                 ),
+
+            "production_burn_in_time":
+                production_burn_in_time,
 
             "time":
                 time,
@@ -953,11 +1580,6 @@ for result in results:
                 "kinetic_per_particle_theory"
             ],
 
-        "kinetic_per_particle_sem":
-            result[
-                "kinetic_per_particle_sem"
-            ],
-
         "mean_elastic":
             result[
                 "mean_elastic"
@@ -983,11 +1605,6 @@ for result in results:
                 "elastic_per_particle_theory"
             ],
 
-        "elastic_per_particle_sem":
-            result[
-                "elastic_per_particle_sem"
-            ],
-
         "mean_bond_length":
             result[
                 "mean_bond_length"
@@ -1001,6 +1618,51 @@ for result in results:
         "bond_length_std":
             result[
                 "bond_length_std"
+            ],
+
+        "mean_rg2":
+            result[
+                "mean_rg2"
+            ],
+
+        "center_of_mass_diffusion_coefficient":
+            result[
+                "center_of_mass_diffusion_coefficient"
+            ],
+
+        "diffusion_fit_start_time":
+            result[
+                "diffusion_fit_start_time"
+            ],
+
+        "diffusion_fit_end_time":
+            result[
+                "diffusion_fit_end_time"
+            ],
+
+        "equilibrium_sample_count":
+            result[
+                "equilibrium_sample_count"
+            ],
+
+        "mean_rg":
+            result[
+                "mean_rg"
+            ],
+
+        "rg2_theory":
+            result[
+                "rg2_theory"
+            ],
+
+        "mean_ree2":
+            result[
+                "mean_ree2"
+            ],
+
+        "ree2_theory":
+            result[
+                "ree2_theory"
             ],
 
         "bond_length_sem":
@@ -1026,6 +1688,11 @@ for result in results:
         "saved_dt":
             result[
                 "saved_dt"
+            ],
+
+        "production_burn_in_time":
+            result[
+                "production_burn_in_time"
             ]
     })
 
@@ -1047,7 +1714,8 @@ with summary_file.open(
             summary_rows[
                 0
             ].keys()
-        )
+        ),
+        lineterminator="\n"
     )
 
     writer.writeheader()
@@ -1542,6 +2210,12 @@ print(
     f"{min_thermalization_time}"
 )
 
+print(
+    "Tiempo de produccion descartado "
+    "para promedios estructurales = "
+    f"{production_burn_in_time}"
+)
+
 print()
 
 print(
@@ -1628,7 +2302,32 @@ for result in results:
     )
 
     print(
-        "  t termalizacion = "
+        "  <Rg^2> = "
+        f"{result['mean_rg2']:.6f} "
+        "(FJC: "
+        f"{result['rg2_theory']:.6f})"
+    )
+
+    print(
+        "    calculado desde t = "
+        f"{production_burn_in_time:g} "
+        f"({result['equilibrium_sample_count']} muestras)"
+    )
+
+    print(
+        "  <Rg> = "
+        f"{result['mean_rg']:.6f}"
+    )
+
+    print(
+        "  <Ree^2> = "
+        f"{result['mean_ree2']:.6f} "
+        "(FJC: "
+        f"{result['ree2_theory']:.6f})"
+    )
+
+    print(
+        "  t thermalization = "
         f"{result['thermalization_time']:.3f}"
     )
 
@@ -1652,3 +2351,331 @@ print(
 print(
     figures_folder
 )
+
+rg2_mean = np.array([
+    result["mean_rg2"]
+    for result in results
+])
+
+rg2_theory_arr = np.array([
+    result["rg2_theory"]
+    for result in results
+])
+
+rg_rms = np.sqrt(rg2_mean)
+
+ree2_mean = np.array([
+    result["mean_ree2"]
+    for result in results
+])
+
+ree2_theory_arr = np.array([
+    result["ree2_theory"]
+    for result in results
+])
+
+# Ajuste de ley de escala: R_G ~ N^nu  (o Rg^2 ~ N^(2*nu))
+# Usamos (N - 1) o N en log-log
+log_N = np.log(N_plot)
+log_rg = np.log(rg_rms)
+
+nu_fit, log_a_fit = np.polyfit(
+    log_N,
+    log_rg,
+    1
+)
+
+
+scaling_summary_file = (
+    tables_folder
+    / "polymer_scaling_summary.txt"
+)
+
+
+nu_difference = abs(
+    nu_fit - 0.5
+)
+
+
+if nu_difference < 0.05:
+
+    scaling_conclusion = (
+        "El exponente ajustado es compatible con "
+        "nu = 0.5, esperado para una cadena ideal "
+        "tipo random walk."
+    )
+
+else:
+
+    scaling_conclusion = (
+        "El exponente ajustado se aleja de nu = 0.5. "
+        "No se confirma la ley esperada con este barrido; "
+        "revisa el equilibrio, el muestreo y las "
+        "fluctuaciones estadisticas."
+    )
+
+
+scaling_summary_file.write_text(
+    "COMPROBACION DE LA LEY DE ESCALA DEL POLIMERO\n"
+    "\n"
+    f"N evaluados = {', '.join(str(value) for value in N_plot)}\n"
+    f"Tiempo inicial descartado = "
+    f"{production_burn_in_time:.6f}\n"
+    "Promedio calculado solo en el regimen posterior al descarte.\n"
+    f"<Rg^2> medio por N = "
+    f"{', '.join(f'{value:.8f}' for value in rg2_mean)}\n"
+    f"Exponente ajustado nu = {nu_fit:.6f}\n"
+    "Exponente esperado para cadena ideal = 0.5\n"
+    f"Diferencia respecto a 0.5 = {nu_difference:.6f}\n"
+    "Difusion del centro de masas (D_CM = pendiente MSD/6):\n"
+    + "".join(
+        f"  N={result['N']}: "
+        f"D_CM={result['center_of_mass_diffusion_coefficient']:.8g}, "
+        f"ajuste en tau=[{result['diffusion_fit_start_time']:.6g}, "
+        f"{result['diffusion_fit_end_time']:.6g}]\n"
+        for result in results
+    )
+    + f"Conclusión: {scaling_conclusion}\n"
+)
+
+
+print()
+
+print(
+    "Comprobacion de la ley de escala:"
+)
+
+print(
+    "  Rg ~ N^nu"
+)
+
+print(
+    f"  nu ajustado = {nu_fit:.4f}"
+)
+
+print(
+    f"  diferencia respecto a 0.5 = {nu_difference:.4f}"
+)
+
+print(
+    "  D_CM estimado por N:"
+)
+
+for result in results:
+
+    print(
+        f"    N={result['N']}: "
+        f"{result['center_of_mass_diffusion_coefficient']:.6g} "
+        f"(ajuste tau="
+        f"{result['diffusion_fit_start_time']:.4g}–"
+        f"{result['diffusion_fit_end_time']:.4g})"
+    )
+
+print(
+    "  nu esperado (cadena ideal) = 0.5"
+)
+
+print(
+    f"  {scaling_conclusion}"
+)
+
+print(
+    "  Resumen:"
+)
+
+print(
+    scaling_summary_file
+)
+
+
+# ===================================
+# 5. <Rg^2> frente a N (escala lineal)
+# ===================================
+
+plt.figure(
+    figsize=(8, 5)
+)
+
+plt.plot(
+    N_plot,
+    rg2_mean,
+    marker="o",
+    label=r"Simulación $\langle R_G^2\rangle$"
+)
+
+plt.plot(
+    N_plot,
+    rg2_theory_arr,
+    linestyle="--",
+    label=r"Cadena ideal $\frac{N^2-1}{6N}\langle l^2\rangle$"
+)
+
+plt.xlabel(
+    "Número de monómeros $N$"
+)
+
+plt.ylabel(
+    r"$\langle R_G^2\rangle$"
+)
+
+plt.title(
+    r"Radio de giro cuadrático medio frente a $N$"
+)
+
+plt.grid(
+    True,
+    alpha=0.3
+)
+
+plt.legend()
+
+plt.tight_layout()
+
+plt.savefig(
+    figures_folder
+    / "polymer_rg2_vs_N.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.close()
+
+
+# ===================================
+# 6. Ley de escala: Rg^2 y Ree^2 vs N
+# ===================================
+
+plt.figure(
+    figsize=(8, 5)
+)
+
+plt.plot(
+    N_plot,
+    rg2_mean,
+    marker="o",
+    label=r"Simulación $\langle R_G^2\rangle$"
+)
+
+plt.plot(
+    N_plot,
+    rg2_theory_arr,
+    linestyle="--",
+    label=r"Teoría FJC $\frac{N^2-1}{6N}\langle l^2\rangle$"
+)
+
+plt.plot(
+    N_plot,
+    ree2_mean,
+    marker="s",
+    label=r"Simulación $\langle R_{ee}^2\rangle$"
+)
+
+plt.plot(
+    N_plot,
+    ree2_theory_arr,
+    linestyle=":",
+    label=r"Teoría FJC $(N-1)\langle l^2\rangle$"
+)
+
+plt.xlabel(
+    "Número de monómeros $N$"
+)
+
+plt.ylabel(
+    r"Distancia cuadrática media"
+)
+
+plt.title(
+    "Crecimiento lineal de $\\langle R_G^2\\rangle$ y "
+    "$\\langle R_{ee}^2\\rangle$ con $N$"
+)
+
+plt.grid(
+    True,
+    alpha=0.3
+)
+
+plt.legend()
+
+plt.tight_layout()
+
+plt.savefig(
+    figures_folder
+    / "polymer_rg2_ree2_vs_N.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.close()
+
+
+# ===================================
+# 7. Ley de escala Log-Log (Exponente nu)
+# ===================================
+
+plt.figure(
+    figsize=(8, 5)
+)
+
+plt.loglog(
+    N_plot,
+    rg_rms,
+    marker="o",
+    linestyle="None",
+    label=r"Simulación $\sqrt{\langle R_G^2\rangle}$"
+)
+
+N_fine = np.linspace(
+    min(N_plot),
+    max(N_plot),
+    200
+)
+
+plt.loglog(
+    N_fine,
+    np.exp(log_a_fit) * (N_fine ** nu_fit),
+    linestyle="-",
+    label=(
+        f"Ajuste ley de escala: "
+        f"$R_G \\propto N^{{\\nu}}$ "
+        f"($\\nu = {nu_fit:.3f}$)"
+    )
+)
+
+plt.loglog(
+    N_fine,
+    np.sqrt((N_fine ** 2 - 1) / (6.0 * N_fine) * bond_length_sq_theory),
+    linestyle="--",
+    label=r"Teoría cadena ideal ($\nu \to 0.5$)"
+)
+
+plt.xlabel(
+    "Número de monómeros $N$ (escala log)"
+)
+
+plt.ylabel(
+    r"Radio de giro $\sqrt{\langle R_G^2\rangle}$ (escala log)"
+)
+
+plt.title(
+    "Ley de escala del radio de giro del polímero"
+)
+
+plt.grid(
+    True,
+    which="both",
+    alpha=0.3
+)
+
+plt.legend()
+
+plt.tight_layout()
+
+plt.savefig(
+    figures_folder
+    / "polymer_rg_scaling_loglog.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.close()
