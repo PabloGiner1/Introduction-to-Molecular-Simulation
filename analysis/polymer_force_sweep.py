@@ -15,7 +15,6 @@ data_file = project_root / "data" / "raw" / "polymer" / "polymer.csv"
 results_folder = project_root / "results" / "polymer" / "force_sweep"
 tables_folder = results_folder / "tables"
 figures_folder = results_folder / "figures"
-summary_file = tables_folder / "polymer_force_sweep.csv"
 figure_file = figures_folder / "polymer_end_to_end_vs_force.png"
 
 maximum_force = 100.0
@@ -83,6 +82,35 @@ def read_final_measurement(number_of_monomers):
     return final_time, last_x - first_x
 
 
+def read_existing_measurements(summary_file, spring_constant):
+    existing_measurements = {}
+
+    if not summary_file.exists():
+        return existing_measurements
+
+    with summary_file.open(newline="") as file:
+        rows = list(csv.DictReader(file))
+
+    for row in rows:
+        try:
+            row_spring_constant = float(row["ke"])
+            force = float(row["force"])
+            end_to_end_x = float(row["end_to_end_x"])
+            final_time = float(row["final_time"])
+        except (KeyError, TypeError, ValueError):
+            continue
+
+        if row_spring_constant == spring_constant:
+            existing_measurements[force] = (
+                row_spring_constant,
+                force,
+                end_to_end_x,
+                final_time,
+            )
+
+    return existing_measurements
+
+
 def main():
     if os.name == "nt":
         simulation_program = project_root / "bin" / "simulation.exe"
@@ -97,8 +125,15 @@ def main():
 
     if "N" not in config_values:
         raise RuntimeError("Falta el parámetro N en config/simulation.txt.")
+    if "ke" not in config_values:
+        raise RuntimeError("Falta el parámetro ke en config/simulation.txt.")
 
     number_of_monomers = int(float(config_values["N"]))
+    spring_constant = float(config_values["ke"])
+    summary_file = (
+        tables_folder
+        / f"polymer_force_sweep_k_{spring_constant:g}.csv"
+    )
     forces_low = np.linspace(1.0, 20, 19, endpoint = False)
     forces = np.linspace(20.0, maximum_force, number_of_forces)
     measurements = []
@@ -126,7 +161,9 @@ def main():
             final_time, end_to_end_x = read_final_measurement(
                 number_of_monomers
             )
-            measurements.append((force, end_to_end_x, final_time))
+            measurements.append(
+                (spring_constant, force, end_to_end_x, final_time)
+            )
             print(
                 f"  t_final = {final_time:g}, "
                 f"distancia en +x = {end_to_end_x:g}"
@@ -134,16 +171,29 @@ def main():
     finally:
         config_file.write_text(original_config)
 
+    existing_measurements = read_existing_measurements(
+        summary_file,
+        spring_constant,
+    )
+    for row in measurements:
+        existing_measurements[row[1]] = row
+    case_measurements = sorted(existing_measurements.values(), key=lambda row: row[1])
 
     with summary_file.open("w", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow(("force", "end_to_end_x", "final_time"))
-        writer.writerows(measurements)
+        writer.writerow(("ke", "force", "end_to_end_x", "final_time"))
+        writer.writerows(case_measurements)
 
-    measured_forces = [row[0] for row in measurements]
-    distances = [row[1] for row in measurements]
+    measured_forces = [
+        row[1]
+        for row in case_measurements
+    ]
+    distances = [
+        row[2]
+        for row in case_measurements
+    ]
 
-    # # Leer los datos de la tabla de resultados, COMENTAR SI VAS A EJECUTAR LA SIMULACION
+    # # Leer los datos de la tabla de resultados, COMENTAR SI VAS A EJECUTAR LA SIMULACION 
     # with summary_file.open(newline="") as file:
     #     rows = list(csv.DictReader(file))
 

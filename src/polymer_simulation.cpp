@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define POLYMER_WINDOW 10000
-#define POLYMER_MAX_THERMALIZATION_TIME 50000.0
+#define POLYMER_WINDOW 200000
+#define POLYMER_MAX_THERMALIZATION_TIME 100000.0
 
 void runPolymerSimulation(
     int algorithm,
@@ -128,7 +128,7 @@ void runPolymerSimulation(
 
     tolerance = 0.05;
 
-    requiredWindows = 5;
+    requiredWindows = 10;
 
     consecutiveWindows = 0;
     hasPreviousWindow = 0;

@@ -551,7 +551,7 @@ ax.plot(
         :,
         2
     ],
-    marker="o",
+    marker=".",
     linewidth=1.2,
     label=f"$N={N}$"
 )
