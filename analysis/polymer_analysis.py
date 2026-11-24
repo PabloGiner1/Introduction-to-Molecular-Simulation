@@ -125,6 +125,16 @@ force = parameters[
     "force"
 ]
 
+first_end = parameters.get(
+    "firstEnd",
+    "fixed"
+)
+
+if first_end not in ("fixed", "free"):
+    raise ValueError(
+        f"Condición de extremo no válida: {first_end!r}"
+    )
+
 
 mass = parameters[
     "mass"
@@ -289,37 +299,74 @@ mean_total = float(
 #
 # <Ecin> = 3 N_libres kBT / 2
 
-free_monomers = N - int(parameters.get("firstEnd", "fixed") == "fixed")
+free_monomers = N - int(first_end == "fixed")
 kinetic_theory = (
     1.5
     * free_monomers
     * kBT
 )
 
+if first_end == "free":
+    # The unanchored chain drifts at the steady center-of-mass
+    # speed F / (N gamma); include that mean motion in kinetic energy.
+    center_of_mass_drift = force / (N * gamma)
+    kinetic_theory += (
+        0.5
+        * N
+        * mass
+        * center_of_mass_drift ** 2
+    )
 
 # Para un enlace bajo una fuerza en +x:
 #
 # U(l, theta) = U_resorte(l) - F l cos(theta)
 #
+<<<<<<< HEAD
 # Al integrar las orientaciones en 3D aparece sinh(q)/q,
 # donde q = F l / kBT.
+=======
+# En 3D, la fuerza efectiva sobre el enlace modifica
+# la distribución angular y, por tanto, la distribución radial.
+#
+# P(l) ~ l^2 exp[-U(l)/kBT] sinh(z)/z
+# z = F_eff l / kBT
+>>>>>>> 9491e73332b7b7e9d693b885afc9aab5d43231ab
 
 sigma = np.sqrt(
     kBT
     / ke
 )
 
+if first_end == "fixed":
+    effective_bond_forces = np.full(
+        N - 1,
+        force
+    )
+else:
+    # In the center-of-mass frame the endpoint force is shared
+    # nonuniformly across the bonds.
+    effective_bond_forces = (
+        force
+        * np.arange(1, N, dtype=float)
+        / N
+    )
 
 l_grid = np.linspace(
     0.0,
+<<<<<<< HEAD
     l0
     + abs(force)
     / ke
     + 10.0
     * sigma,
+=======
+    max(
+        l0 + 10.0 * sigma,
+        l0 + np.max(np.abs(effective_bond_forces)) / ke + 10.0 * sigma
+    ),
+>>>>>>> 9491e73332b7b7e9d693b885afc9aab5d43231ab
     50000
 )
-
 
 bond_potential = (
     0.5
@@ -330,7 +377,11 @@ bond_potential = (
     ) ** 2
 )
 
+bond_probability_theory = np.zeros_like(l_grid)
+bond_length_theory = 0.0
+elastic_theory = 0.0
 
+<<<<<<< HEAD
 force_argument = (
     abs(force)
     * l_grid
@@ -411,10 +462,25 @@ bond_weight_without_force = (
     l_grid ** 2
     * np.exp(
         -bond_potential
-        / kBT
-    )
+=======
+positive_lengths = l_grid > 0.0
+log_lengths_squared = np.full_like(
+    l_grid,
+    -np.inf
+)
+log_lengths_squared[positive_lengths] = (
+    2.0 * np.log(l_grid[positive_lengths])
 )
 
+for effective_force in effective_bond_forces:
+    z = (
+        abs(effective_force)
+        * l_grid
+>>>>>>> 9491e73332b7b7e9d693b885afc9aab5d43231ab
+        / kBT
+    )
+
+<<<<<<< HEAD
 normalization = integrate(
     bond_weight,
     l_grid
@@ -449,14 +515,55 @@ bond_length_theory_without_force = float(
         l_grid
     )
 )
+=======
+    log_sinhc = np.zeros_like(z)
+    small_z = z < 1.0e-4
+    middle_z = (z >= 1.0e-4) & (z <= 20.0)
+    large_z = z > 20.0
 
+    log_sinhc[small_z] = (
+        z[small_z] ** 2 / 6.0
+        - z[small_z] ** 4 / 180.0
+    )
+    log_sinhc[middle_z] = np.log(
+        np.sinh(z[middle_z]) / z[middle_z]
+    )
+    log_sinhc[large_z] = (
+        z[large_z]
+        - np.log(2.0 * z[large_z])
+        + np.log1p(-np.exp(-2.0 * z[large_z]))
+    )
 
-elastic_per_bond_theory = float(
-    integrate(
-        bond_potential
-        * bond_probability_theory,
+    log_bond_weight = (
+        log_lengths_squared
+        - bond_potential / kBT
+        + log_sinhc
+    )
+    bond_weight = np.exp(
+        log_bond_weight - np.max(log_bond_weight)
+    )
+    normalization = integrate(
+        bond_weight,
         l_grid
     )
+    bond_probability = bond_weight / normalization
+>>>>>>> 9491e73332b7b7e9d693b885afc9aab5d43231ab
+
+    bond_probability_theory += (
+        bond_probability / (N - 1)
+    )
+    bond_length_theory += (
+        integrate(
+            l_grid * bond_probability,
+            l_grid
+        )
+        / (N - 1)
+    )
+    elastic_theory += integrate(
+        bond_potential * bond_probability,
+        l_grid
+    )
+<<<<<<< HEAD
 )
 elastic_per_bond_theory_without_force = float(
     integrate(
@@ -471,6 +578,8 @@ elastic_theory = (
     (N - 1)
     * elastic_per_bond_theory
 )
+=======
+>>>>>>> 9491e73332b7b7e9d693b885afc9aab5d43231ab
 
 elastic_theory_without_force = (
     (N - 1)
@@ -754,7 +863,7 @@ plt.tight_layout()
 plt.savefig(
     figures_folder
     / "polymer_snapshot_3d.png",
-    dpi=600,
+    dpi=120,
     bbox_inches="tight"
 )
 
@@ -768,26 +877,107 @@ plt.close(
 # 1b. Animación 3D del polímero
 # ===================================
 
+<<<<<<< HEAD
 # Para poner el centro de masas en el origen:
+=======
+# Limitamos el número de fotogramas
+# para que el GIF no sea excesivamente
+# pesado.
 
-# # Centramos cada configuración
-# # en su propio centro de masas.
-# #
-# # Así eliminamos la traslación global
-# # browniana y observamos principalmente
-# # los cambios de forma del polímero.
+max_animation_frames = 100
 
-# animation_centers = np.mean(
-#     animation_coordinates,
-#     axis=1,
-#     keepdims=True
-# )
+animation_fps = 10
 
 
-# animation_coordinates -= (
-#     animation_centers
-# )
+number_animation_frames = min(
+    max_animation_frames,
+    len(
+        coordinates
+    )
+)
 
+
+animation_indices = np.unique(
+    np.linspace(
+        len(
+            coordinates
+        ) - max_animation_frames,
+        len(
+            coordinates
+        ) - 1,
+        number_animation_frames,
+        dtype=int
+    )
+)
+
+animation_indices = np.concatenate(
+    (
+        animation_indices,
+        np.full(
+            20,
+            animation_indices[-1],
+            dtype=int
+        )
+    )
+)
+
+
+animation_coordinates = (
+    coordinates[
+        animation_indices
+    ]
+    .copy()
+)
+
+# Para poner el centro de masas en el origen solo cuando
+# el polímero puede trasladarse libremente.
+if first_end == "free":
+    # Centramos cada configuración
+    # en su propio centro de masas.
+    #
+    # Así eliminamos la traslación global
+    # browniana y observamos principalmente
+    # los cambios de forma del polímero.
+>>>>>>> 9491e73332b7b7e9d693b885afc9aab5d43231ab
+
+    animation_centers = np.mean(
+        animation_coordinates,
+        axis=1,
+        keepdims=True
+    )
+
+
+    animation_coordinates -= (
+        animation_centers
+    )
+
+<<<<<<< HEAD
+=======
+# Límites fijos para toda la animación.
+#
+# Es importante que los ejes no cambien
+# de escala de un fotograma a otro.
+
+coordinate_min = np.min(
+    animation_coordinates,
+    axis=(0, 1)
+)
+
+coordinate_max = np.max(
+    animation_coordinates,
+    axis=(0, 1)
+)
+
+coordinate_span = np.maximum(
+    coordinate_max - coordinate_min,
+    1.0
+)
+
+axis_padding = 0.05 * coordinate_span
+axis_min = coordinate_min - axis_padding
+axis_max = coordinate_max + axis_padding
+
+>>>>>>> 9491e73332b7b7e9d693b885afc9aab5d43231ab
 fig_animation = plt.figure(
     figsize=(7, 6)
 )
@@ -838,7 +1028,7 @@ ax_animation.set_zlim(
 
 
 ax_animation.set_box_aspect(
-    (1,1,1)
+    (1, 1, 1)
 )
 
 ax_animation.set_xlabel(
@@ -1020,8 +1210,9 @@ plt.title(
     "Energías instantáneas del polímero\n"
     f"$N={N}$, "
     f"$k_e={ke:g}$, "
-    f"$k_BT={kBT:g}$"
-    f"$F={force:g}$"
+    f"$k_BT={kBT:g}$, "
+    f"$F={force:g}$, "
+    f"extremo={first_end}"
 )
 
 
@@ -1171,8 +1362,9 @@ plt.title(
     "Convergencia de las energías\n"
     f"$N={N}$, "
     f"$k_e={ke:g}$, "
-    f"$k_BT={kBT:g}, $"
-    f"$F={force:g}, $"
+    f"$k_BT={kBT:g}$, "
+    f"$F={force:g}$, "
+    f"extremo={first_end}"
 )
 
 
@@ -1227,9 +1419,14 @@ plt.plot(
     linewidth=2.0,
     label=(
         r"Teoría "
+<<<<<<< HEAD
         r"$P(l)\propto "
         r"l^2e^{-U_{\rm resorte}(l)/k_BT}"
         r"\frac{\sinh(q)}{q}$"
+=======
+        r"$P(l)\propto l^2e^{-U(l)/k_BT}"
+        r"\sinh(z)/z$"
+>>>>>>> 9491e73332b7b7e9d693b885afc9aab5d43231ab
     )
 )
 
@@ -1282,7 +1479,8 @@ plt.title(
     f"$k_e={ke:g}$, "
     f"$l_0={l0:g}$, "
     f"$k_BT={kBT:g}$, "
-    f"$F={force:g}$"
+    f"$F={force:g}$, "
+    f"extremo={first_end}"
 )
 
 
@@ -1460,6 +1658,8 @@ summary_text = (
     f"ke = {ke}\n"
     f"l0 = {l0}\n"
     f"kBT = {kBT}\n"
+    f"firstEnd = {first_end}\n"
+    f"force = {force}\n"
     f"eta = {gamma}\n"
     f"h = {dt}\n"
     "\n"
@@ -1542,6 +1742,14 @@ print(
 
 print(
     f"kBT = {kBT}"
+)
+
+print(
+    f"Extremo = {first_end}"
+)
+
+print(
+    f"Fuerza aplicada = {force}"
 )
 
 print()
