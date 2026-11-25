@@ -199,6 +199,8 @@ def write_config(
         f"algorithm={algorithm}\n"
         "\n"
         "# Coeficiente de amortiguamiento\n"
+        "kBT=1.0\n"
+        
         f"eta={eta}\n"
         "\n"
         "# Paso temporal\n"
@@ -328,9 +330,8 @@ try:
     for eta in eta_values:
 
         #Quitar el comentario para que seleccione el tiempo mas optimo para cada eta (si buscamos eficiencia de codigo)
-        #total_time = (
-        #    selected_times[eta]
-        #)
+       # total_time = (selected_times[eta]
+    
         total_time = max(selected_times.values()
 )
 
