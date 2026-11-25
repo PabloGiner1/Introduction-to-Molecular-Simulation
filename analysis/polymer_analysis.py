@@ -1,12 +1,12 @@
 from pathlib import Path
 
+import csv
+
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation, PillowWriter
 
-from matplotlib.animation import (
-    FuncAnimation,
-    PillowWriter
-)
+from polymer_metrics import compute_time_averaged_msd
 
 
 project_root = Path(
@@ -112,7 +112,6 @@ N = int(
     ]
 )
 
-
 ke = parameters[
     "ke"
 ]
@@ -147,9 +146,16 @@ dt = parameters[
 ]
 
 
-# ===================================
-# Datos
-# ===================================
+with data_file.open(
+    newline=""
+) as file:
+
+    column_names = next(
+        csv.reader(
+            file
+        )
+    )
+
 
 data = np.loadtxt(
     data_file,
@@ -206,10 +212,40 @@ elastic = (
 )
 
 
+required_coordinate_names = [
+    f"{axis}{monomer}"
+    for monomer in range(N)
+    for axis in ("x", "y", "z")
+]
+
+
+missing_coordinate_names = [
+    name
+    for name in required_coordinate_names
+    if name not in column_names
+]
+
+
+if missing_coordinate_names:
+
+    raise RuntimeError(
+        "Faltan columnas de coordenadas: "
+        f"{', '.join(missing_coordinate_names)}"
+    )
+
+
+coordinate_columns = [
+    column_names.index(
+        name
+    )
+    for name in required_coordinate_names
+]
+
+
 coordinates = (
     data[
         :,
-        3:
+        coordinate_columns
     ]
     .reshape(
         len(data),
@@ -261,13 +297,12 @@ kinetic_theory = (
 )
 
 
-# Para un enlace:
+# Para un enlace bajo una fuerza en +x:
 #
-# U(l) = 1/2 ke (l-l0)^2
+# U(l, theta) = U_resorte(l) - F l cos(theta)
 #
-# En 3D:
-#
-# P(l) ~ l^2 exp[-U(l)/kBT]
+# Al integrar las orientaciones en 3D aparece sinh(q)/q,
+# donde q = F l / kBT.
 
 sigma = np.sqrt(
     kBT
@@ -278,6 +313,8 @@ sigma = np.sqrt(
 l_grid = np.linspace(
     0.0,
     l0
+    + abs(force)
+    / ke
     + 10.0
     * sigma,
     50000
@@ -294,7 +331,83 @@ bond_potential = (
 )
 
 
-bond_weight = (
+force_argument = (
+    abs(force)
+    * l_grid
+    / kBT
+)
+
+
+log_angular_weight = np.empty_like(
+    force_argument
+)
+
+small_argument = (
+    force_argument
+    < 0.1
+)
+
+small_argument_squared = (
+    force_argument[small_argument] ** 2
+)
+
+log_angular_weight[small_argument] = (
+    small_argument_squared / 6.0
+    - small_argument_squared ** 2 / 180.0
+    + small_argument_squared ** 3 / 2835.0
+)
+
+large_argument = ~small_argument
+large_force_argument = force_argument[large_argument]
+
+log_angular_weight[large_argument] = (
+    large_force_argument
+    - np.log(
+        2.0
+        * large_force_argument
+    )
+    + np.log1p(
+        -np.exp(
+            -2.0
+            * large_force_argument
+        )
+    )
+)
+
+
+log_radial_weight = np.full_like(
+    l_grid,
+    -np.inf
+)
+
+positive_lengths = (
+    l_grid
+    > 0.0
+)
+
+log_radial_weight[positive_lengths] = (
+    2.0
+    * np.log(
+        l_grid[positive_lengths]
+    )
+)
+
+
+log_bond_weight = (
+    log_radial_weight
+    - bond_potential / kBT
+    + log_angular_weight
+)
+
+
+bond_weight = np.exp(
+    log_bond_weight
+    - np.max(
+        log_bond_weight
+    )
+)
+
+bond_weight_without_force = (
     l_grid ** 2
     * np.exp(
         -bond_potential
@@ -302,9 +415,12 @@ bond_weight = (
     )
 )
 
-
 normalization = integrate(
     bond_weight,
+    l_grid
+)
+normalization_without_force = integrate(
+    bond_weight_without_force,
     l_grid
 )
 
@@ -313,12 +429,23 @@ bond_probability_theory = (
     bond_weight
     / normalization
 )
+bond_probability_theory_without_force = (
+    bond_weight_without_force
+    / normalization_without_force
+)
 
 
 bond_length_theory = float(
     integrate(
         l_grid
         * bond_probability_theory,
+        l_grid
+    )
+)
+bond_length_theory_without_force = float(
+    integrate(
+        l_grid
+        * bond_probability_theory_without_force,
         l_grid
     )
 )
@@ -331,11 +458,24 @@ elastic_per_bond_theory = float(
         l_grid
     )
 )
+elastic_per_bond_theory_without_force = float(
+    integrate(
+        bond_potential
+        * bond_probability_theory_without_force,
+        l_grid
+    )
+)
 
 
 elastic_theory = (
     (N - 1)
     * elastic_per_bond_theory
+)
+
+elastic_theory_without_force = (
+    (N - 1)
+     * elastic_per_bond_theory_without_force
+     
 )
 
 
@@ -359,6 +499,14 @@ elastic_error = (
         - elastic_theory
     )
     / elastic_theory
+    * 100.0
+)
+elastic_error_without_force = (
+    abs(
+        mean_elastic
+        - elastic_theory_without_force
+    )
+    / elastic_theory_without_force
     * 100.0
 )
 
@@ -409,6 +557,73 @@ bond_length_error = (
     / bond_length_theory
     * 100.0
 )
+bond_length_error_without_force = (
+    abs(
+        mean_bond_length
+        - bond_length_theory_without_force
+    )
+    / bond_length_theory_without_force
+    * 100.0
+)
+
+
+# ===================================
+# Límites compartidos con la animación
+# ===================================
+
+max_animation_frames = 200
+
+animation_fps = 20
+
+
+number_animation_frames = min(
+    max_animation_frames,
+    len(
+        coordinates
+    )
+)
+
+
+animation_indices = np.unique(
+    np.linspace(
+        len(
+            coordinates
+        ) - max_animation_frames,
+        len(
+            coordinates
+        ) - 1,
+        number_animation_frames,
+        dtype=int
+    )
+)
+
+
+animation_coordinates = (
+    coordinates[
+        animation_indices
+    ]
+    .copy()
+)
+
+
+coordinate_min = np.min(
+    animation_coordinates,
+    axis=(0, 1)
+)
+
+coordinate_max = np.max(
+    animation_coordinates,
+    axis=(0, 1)
+)
+
+coordinate_span = np.maximum(
+    coordinate_max - coordinate_min,
+    1.0
+)
+
+axis_padding = 0.05 * coordinate_span
+axis_min = coordinate_min - axis_padding
+axis_max = coordinate_max + axis_padding
 
 
 # ===================================
@@ -458,24 +673,34 @@ ax.plot(
         :,
         2
     ],
-    marker="o",
+    marker=".",
     linewidth=1.2,
     label=f"$N={N}$"
 )
 
+ax.scatter(
+    0.0,
+    0.0,
+    0.0,
+    color="red",
+    marker="x",
+    s=65,
+    label=r"$\vec R_{CM}=(0,0,0)$"
+)
+
 
 ax.set_xlabel(
-    "$x$"
+    "$x-R_{CM,x}$"
 )
 
 
 ax.set_ylabel(
-    "$y$"
+    "$y-R_{CM,y}$"
 )
 
 
 ax.set_zlabel(
-    "$z$"
+    "$z-R_{CM,z}$"
 )
 
 
@@ -489,76 +714,27 @@ ax.set_title(
 )
 
 
-ranges = np.array([
-    np.ptp(
-        final_coordinates[
-            :,
-            0
-        ]
-    ),
-
-    np.ptp(
-        final_coordinates[
-            :,
-            1
-        ]
-    ),
-
-    np.ptp(
-        final_coordinates[
-            :,
-            2
-        ]
-    )
-])
-
-
-max_range = max(
-    float(
-        np.max(
-            ranges
-        )
-    ),
-    1.0
-)
-
-
-midpoints = np.mean(
-    np.array([
-        np.min(
-            final_coordinates,
-            axis=0
-        ),
-        np.max(
-            final_coordinates,
-            axis=0
-        )
-    ]),
-    axis=0
-)
+snapshot_axis_half_range = (
+    axis_max
+    - axis_min
+) / 2.0
 
 
 ax.set_xlim(
-    midpoints[0]
-    - max_range / 2,
-    midpoints[0]
-    + max_range / 2
+    -snapshot_axis_half_range[0],
+    snapshot_axis_half_range[0]
 )
 
 
 ax.set_ylim(
-    midpoints[1]
-    - max_range / 2,
-    midpoints[1]
-    + max_range / 2
+    -snapshot_axis_half_range[1],
+    snapshot_axis_half_range[1]
 )
 
 
 ax.set_zlim(
-    midpoints[2]
-    - max_range / 2,
-    midpoints[2]
-    + max_range / 2
+    -snapshot_axis_half_range[2],
+    snapshot_axis_half_range[2]
 )
 
 
@@ -592,45 +768,6 @@ plt.close(
 # 1b. Animación 3D del polímero
 # ===================================
 
-# Limitamos el número de fotogramas
-# para que el GIF no sea excesivamente
-# pesado.
-
-max_animation_frames = 200
-
-animation_fps = 20
-
-
-number_animation_frames = min(
-    max_animation_frames,
-    len(
-        coordinates
-    )
-)
-
-
-animation_indices = np.unique(
-    np.linspace(
-        len(
-            coordinates
-        ) - max_animation_frames,
-        len(
-            coordinates
-        ) - 1,
-        number_animation_frames,
-        dtype=int
-    )
-)
-
-
-
-animation_coordinates = (
-    coordinates[
-        animation_indices
-    ]
-    .copy()
-)
-
 # Para poner el centro de masas en el origen:
 
 # # Centramos cada configuración
@@ -650,37 +787,6 @@ animation_coordinates = (
 # animation_coordinates -= (
 #     animation_centers
 # )
-
-# Límites fijos para toda la animación.
-#
-# Es importante que los ejes no cambien
-# de escala de un fotograma a otro.
-
-
-
-
-# Conservamos las coordenadas del CSV para que
-# el extremo fijo permanezca visualmente en el origen. (mejor para representar el extremo fijo)
-
-coordinate_min = np.min(
-    animation_coordinates,
-    axis=(0, 1)
-)
-
-coordinate_max = np.max(
-    animation_coordinates,
-    axis=(0, 1)
-)
-
-coordinate_span = np.maximum(
-    coordinate_max - coordinate_min,
-    1.0
-)
-
-axis_padding = 0.05 * coordinate_span
-axis_min = coordinate_min - axis_padding
-axis_max = coordinate_max + axis_padding
-
 
 fig_animation = plt.figure(
     figsize=(7, 6)
@@ -806,12 +912,28 @@ def update_animation(frame):
     )
 
 
+animation_frames = np.concatenate(
+    (
+        np.arange(
+            len(
+                animation_indices
+            )
+        ),
+        np.full(
+            animation_fps,
+            len(
+                animation_indices
+            )
+            - 1
+        )
+    )
+)
+
+
 polymer_animation = FuncAnimation(
     fig_animation,
     update_animation,
-    frames=len(
-        animation_indices
-    ),
+    frames=animation_frames,
     interval=(
         1000
         / animation_fps
@@ -964,6 +1086,16 @@ cumulative_elastic = (
     / sample_count
 )
 
+cumulative_kinetic_normalized = (
+    cumulative_kinetic
+    / free_monomers
+)
+
+cumulative_elastic_normalized = (
+    cumulative_elastic
+    / (N - 1)
+)
+
 
 fig = plt.figure(
     figsize=(9, 5.5)
@@ -972,46 +1104,57 @@ fig = plt.figure(
 
 plt.plot(
     time,
-    cumulative_kinetic,
+    cumulative_kinetic_normalized,
     linewidth=1.4,
     label=(
         r"$\langle E_{cin}\rangle_{acum}$"
-        f" → {mean_kinetic:.3f}"
+        f" → {mean_kinetic/free_monomers:.3f}"
     )
 )
 
 
 plt.plot(
     time,
-    cumulative_elastic,
+    cumulative_elastic_normalized,
     linewidth=1.4,
     label=(
         r"$\langle E_{el}\rangle_{acum}$"
-        f" → {mean_elastic:.3f}"
+        f" → {mean_elastic/(N-1):.3f}"
     )
 )
 
 
 plt.axhline(
-    kinetic_theory,
+    kinetic_theory / free_monomers,
     linestyle="--",
     linewidth=1.8,
     label=(
         r"$\langle E_{cin}\rangle_{teo}$"
-        f" = {kinetic_theory:.3f}"
+        f" = {kinetic_theory/free_monomers:.3f}"
     )
 )
 
 
 plt.axhline(
-    elastic_theory,
+    elastic_theory / (N-1),
     linestyle=":",
+    color="tab:orange",
     linewidth=1.8,
     label=(
         r"$\langle E_{el}\rangle_{teo}$"
-        f" = {elastic_theory:.3f}"
+        f" = {elastic_theory/(N-1):.3f}"
     )
 )
+if(force!=0):
+    plt.axhline(
+        elastic_theory_without_force / (N-1),
+        linestyle="-.",
+        linewidth=1.8,
+        label=(
+            r"$\langle E_{el}\rangle_{teo}$"
+            f"$ sin fuerza = {elastic_theory_without_force/(N-1):.3f}$"
+        )
+    )
 
 
 plt.xlabel(
@@ -1085,7 +1228,8 @@ plt.plot(
     label=(
         r"Teoría "
         r"$P(l)\propto "
-        r"l^2e^{-U(l)/k_BT}$"
+        r"l^2e^{-U_{\rm resorte}(l)/k_BT}"
+        r"\frac{\sinh(q)}{q}$"
     )
 )
 
@@ -1120,7 +1264,7 @@ plt.axvline(
         f" = {mean_bond_length:.4f}"
     )
 )
-
+plt.legend()
 
 plt.xlabel(
     "Longitud de enlace $l$"
@@ -1165,7 +1309,132 @@ plt.close(
 )
 
 
-# ===================================
+# ==============================
+# Centro de masas, Rg y Ree
+# ==============================
+
+center_of_mass_t = np.mean(
+    coordinates,
+    axis=1
+)
+
+displacements_cm = (
+    coordinates
+    - center_of_mass_t[:, np.newaxis, :]
+)
+
+rg2_t = np.mean(
+    np.sum(
+        displacements_cm ** 2,
+        axis=2
+    ),
+    axis=1
+)
+
+rg_t = np.sqrt(
+    rg2_t
+)
+
+ree_vectors = (
+    coordinates[:, -1, :]
+    - coordinates[:, 0, :]
+)
+
+ree_t = np.linalg.norm(
+    ree_vectors,
+    axis=1
+)
+
+ree2_t = ree_t ** 2
+
+mean_rg2 = float(
+    np.mean(
+        rg2_t
+    )
+)
+
+mean_rg = float(
+    np.mean(
+        rg_t
+    )
+)
+
+mean_ree2 = float(
+    np.mean(
+        ree2_t
+    )
+)
+
+mean_ree = float(
+    np.mean(
+        ree_t
+    )
+)
+
+center_of_mass_displacement = (
+    center_of_mass_t
+    - center_of_mass_t[0]
+)
+
+com_lag_indices, com_msd = (
+    compute_time_averaged_msd(
+        center_of_mass_t
+    )
+)
+
+com_lag_times = np.array([
+    np.mean(
+        time[lag:]
+        - time[:-lag]
+    )
+    for lag in com_lag_indices
+])
+
+diffusion_fit_mask = (
+    (com_lag_times >= 0.2 * com_lag_times[-1])
+    & (com_lag_times <= 0.8 * com_lag_times[-1])
+)
+
+if np.count_nonzero(diffusion_fit_mask) < 2:
+
+    raise RuntimeError(
+        "No hay suficientes retardos para ajustar "
+        "la difusion del centro de masas."
+    )
+
+diffusion_slope, diffusion_intercept = np.polyfit(
+    com_lag_times[diffusion_fit_mask],
+    com_msd[diffusion_fit_mask],
+    1
+)
+
+center_of_mass_diffusion_coefficient = float(
+    diffusion_slope / 6.0
+)
+
+
+bond_length_sq_theory = float(
+    np.trapezoid(
+        (l_grid ** 2)
+        * bond_weight,
+        l_grid
+    )
+    / normalization
+)
+
+ree2_theory = (
+    (N - 1)
+    * bond_length_sq_theory
+)
+
+rg2_theory = (
+    (N ** 2 - 1)
+    / (6.0 * N)
+    * bond_length_sq_theory
+)
+
+
+# ==============================
 # Resumen
 # ===================================
 
@@ -1194,16 +1463,23 @@ summary_text = (
     f"eta = {gamma}\n"
     f"h = {dt}\n"
     "\n"
-    f"<Ekin> experimental = "
-    f"{mean_kinetic:.6f}\n"
-    f"<Ekin> theoretical = "
-    f"{kinetic_theory:.6f}\n"
-    f"<Ekin>/N experimental = "
-    f"{mean_kinetic/N:.6f}\n"
-    f"<Ekin>/N theoretical = "
-    f"{kinetic_theory/N:.6f}\n"
-    f"relative error = "
-    f"{kinetic_error:.3f} %\n"
+    "Center of mass (final) = "
+    f"({center_of_mass_t[-1, 0]:.6f}, "
+    f"{center_of_mass_t[-1, 1]:.6f}, "
+    f"{center_of_mass_t[-1, 2]:.6f})\n"
+    f"<radius of gyration> = {mean_rg:.6f}\n"
+    f"std radius of gyration = "
+    f"{np.std(rg_t):.6f}\n"
+    f"final radius of gyration = {rg_t[-1]:.6f}\n"
+    f"<radius of gyration squared> = {mean_rg2:.6f}\n"
+    f"<end-to-end distance> = {mean_ree:.6f}\n"
+    f"<end-to-end distance squared> = {mean_ree2:.6f}\n"
+    f"Center-of-mass diffusion coefficient = "
+    f"{center_of_mass_diffusion_coefficient:.6f}\n"
+    "\n"
+    f"<Ekin> experimental = {mean_kinetic:.6f}\n"
+    f"<Ekin> theoretical = {kinetic_theory:.6f}\n"
+    f"relative error = {kinetic_error:.3f} %\n"
     "\n"
     f"<Eelastic> experimental = "
     f"{mean_elastic:.6f}\n"
@@ -1376,3 +1652,306 @@ print(
 print(
     figures_folder
 )
+
+
+# ==============================
+# Centro de masas, Rg y Ree
+# ==============================
+
+# ==============================
+# 5. Evolución de Rg^2 y Ree
+# ==============================
+
+fig, (ax1, ax2) = plt.subplots(
+    2,
+    1,
+    figsize=(8, 7),
+    sharex=True
+)
+
+ax1.plot(
+    time,
+    rg2_t,
+    alpha=0.7,
+    label=(
+        r"$R_G^2(t)$ "
+        f"($\\langle R_G^2\\rangle_{{exp}}={mean_rg2:.4f}$)"
+    )
+)
+
+ax1.axhline(
+    rg2_theory,
+    linestyle="--",
+    color="black",
+    label=(
+        r"$\langle R_G^2\rangle_{teo}$"
+        f" = {rg2_theory:.4f}"
+    )
+)
+
+ax1.set_ylabel(r"$R_G^2$")
+ax1.set_title("Evolución del radio de giro y distancia extremo a extremo")
+ax1.grid(True, alpha=0.3)
+ax1.legend()
+
+ax2.plot(
+    time,
+    ree_t,
+    color="tab:orange",
+    alpha=0.7,
+    label=(
+        r"$R_{ee}(t)$ "
+        f"($\\langle R_{{ee}}\\rangle_{{exp}}={mean_ree:.4f}$)"
+    )
+)
+
+ax2.axhline(
+    np.sqrt(ree2_theory),
+    linestyle="--",
+    color="black",
+    label=(
+        r"$\sqrt{\langle R_{ee}^2\rangle_{teo}}$"
+        f" = {np.sqrt(ree2_theory):.4f}"
+    )
+)
+
+ax2.set_xlabel("Tiempo $t$")
+ax2.set_ylabel(r"$R_{ee}$")
+ax2.grid(True, alpha=0.3)
+ax2.legend()
+
+plt.tight_layout()
+
+plt.savefig(
+    figures_folder
+    / "polymer_rg_ree.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.close()
+
+
+plt.figure(
+    figsize=(8, 5)
+)
+
+
+for axis_index, axis_label in enumerate(("x", "y", "z")):
+
+    plt.plot(
+        time,
+        center_of_mass_displacement[:, axis_index],
+        label=(
+            f"$R_{{CM,{axis_label}}}(t)"
+            f"-R_{{CM,{axis_label}}}(0)$"
+        )
+    )
+
+
+plt.xlabel(
+    "Tiempo $t$"
+)
+
+plt.ylabel(
+    "Desplazamiento del centro de masas"
+)
+
+plt.title(
+    "Desplazamiento del centro de masas del polímero"
+)
+
+plt.grid(
+    True,
+    alpha=0.3
+)
+
+plt.legend()
+
+plt.tight_layout()
+
+plt.savefig(
+    figures_folder
+    / "polymer_center_of_mass.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.close()
+
+
+fig = plt.figure(
+    figsize=(9, 7)
+)
+
+ax = fig.add_subplot(
+    111,
+    projection="3d"
+)
+
+trajectory_plot = ax.scatter(
+    center_of_mass_displacement[:, 0],
+    center_of_mass_displacement[:, 1],
+    center_of_mass_displacement[:, 2],
+    c=time,
+    cmap="viridis",
+    s=8
+)
+
+ax.plot(
+    center_of_mass_displacement[:, 0],
+    center_of_mass_displacement[:, 1],
+    center_of_mass_displacement[:, 2],
+    alpha=0.45,
+    linewidth=0.8
+)
+
+ax.scatter(
+    0.0,
+    0.0,
+    0.0,
+    color="green",
+    marker=".",
+    s=45,
+    label="Inicio"
+)
+
+ax.scatter(
+    center_of_mass_displacement[-1, 0],
+    center_of_mass_displacement[-1, 1],
+    center_of_mass_displacement[-1, 2],
+    color="red",
+    marker="x",
+    s=55,
+    label="Final"
+)
+
+colorbar = fig.colorbar(
+    trajectory_plot,
+    ax=ax,
+    pad=0.1
+)
+
+colorbar.set_label(
+    "Tiempo $t$"
+)
+
+ax.set_xlabel(
+    "$R_{CM,x}(t)-R_{CM,x}(0)$"
+)
+
+ax.set_ylabel(
+    "$R_{CM,y}(t)-R_{CM,y}(0)$"
+)
+
+ax.set_zlabel(
+    "$R_{CM,z}(t)-R_{CM,z}(0)$"
+)
+
+ax.set_title(
+    "Difusión 3D del centro de masas"
+)
+
+ax.legend()
+
+path_ranges = np.ptp(
+    center_of_mass_displacement,
+    axis=0
+)
+
+path_half_range = max(
+    float(np.max(path_ranges)) / 2.0,
+    1.0e-12
+)
+
+path_midpoint = (
+    np.max(
+        center_of_mass_displacement,
+        axis=0
+    )
+    + np.min(
+        center_of_mass_displacement,
+        axis=0
+    )
+) / 2.0
+
+ax.set_xlim(
+    path_midpoint[0] - path_half_range,
+    path_midpoint[0] + path_half_range
+)
+
+ax.set_ylim(
+    path_midpoint[1] - path_half_range,
+    path_midpoint[1] + path_half_range
+)
+
+ax.set_zlim(
+    path_midpoint[2] - path_half_range,
+    path_midpoint[2] + path_half_range
+)
+
+plt.tight_layout()
+
+plt.savefig(
+    figures_folder
+    / "polymer_com_diffusion_3d.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.close()
+
+
+
+plt.close()
+
+
+plt.figure(
+    figsize=(8, 5)
+)
+
+
+plt.plot(
+    time,
+    rg_t,
+    label=(
+        f"$R_g$ "
+        f"($\\langle R_g\\rangle={mean_rg:.4f}$)"
+    )
+)
+
+plt.axhline(
+    mean_rg,
+    linestyle="--",
+    label=f"$\\langle R_g\\rangle={mean_rg:.4f}$"
+)
+
+plt.xlabel(
+    "Tiempo $t$"
+)
+
+plt.ylabel(
+    "Radio de giro $R_g$"
+)
+
+plt.title(
+    "Radio de giro del polímero"
+)
+
+plt.grid(
+    True,
+    alpha=0.3
+)
+
+plt.legend()
+
+plt.tight_layout()
+
+plt.savefig(
+    figures_folder
+    / "polymer_radius_of_gyration.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.close()

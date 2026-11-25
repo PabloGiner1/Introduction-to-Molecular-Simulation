@@ -1,17 +1,18 @@
-# Algoritmo de integraci�n
-# Opciones: EULER_MARUYAMA, RUNGE_KUTTA, GJF
+model=POLYMER
 algorithm=GJF
-model=DOUBLE_WELL
 
-# Coeficiente de amortiguamiento
-kBT=0.2
+N=64
+ke=100.0
+l0=1.0
+force=1
+firstEnd=fixed
+
+mass=1.0
+kBT=1.0
 eta=1.0
 
-# Paso temporal
 h=0.01
-
-# Tiempo total de simulaci�n
-totalTime=5000000.0
+totalTime=100000.0
 
 # Semilla del generador aleatorio
 seed=random

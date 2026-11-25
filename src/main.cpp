@@ -40,7 +40,7 @@ int main()
     simulation.initialVelocity = 0.0;
 
     simulation.maxSavedPoints = 10000;
-    simulation.minThermalizationTime = 0.0;
+    simulation.minThermalizationTime = 1.0;
 
     // Parámetros de los modelos escalares
     modelParameters.k = 1.0;
