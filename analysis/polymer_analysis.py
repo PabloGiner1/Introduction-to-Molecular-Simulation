@@ -1096,6 +1096,7 @@ cumulative_elastic_normalized = (
     / (N - 1)
 )
 
+convergence_start_index = 500
 
 fig = plt.figure(
     figsize=(9, 5.5)
@@ -1103,23 +1104,12 @@ fig = plt.figure(
 
 
 plt.plot(
-    time,
-    cumulative_kinetic_normalized,
+    time[convergence_start_index:],
+    cumulative_kinetic_normalized[convergence_start_index:],
     linewidth=1.4,
     label=(
         r"$\langle E_{cin}\rangle_{acum}$"
         f" → {mean_kinetic/free_monomers:.3f}"
-    )
-)
-
-
-plt.plot(
-    time,
-    cumulative_elastic_normalized,
-    linewidth=1.4,
-    label=(
-        r"$\langle E_{el}\rangle_{acum}$"
-        f" → {mean_elastic/(N-1):.3f}"
     )
 )
 
@@ -1135,44 +1125,22 @@ plt.axhline(
 )
 
 
-plt.axhline(
-    elastic_theory / (N-1),
-    linestyle=":",
-    color="tab:orange",
-    linewidth=1.8,
-    label=(
-        r"$\langle E_{el}\rangle_{teo}$"
-        f" = {elastic_theory/(N-1):.3f}"
-    )
-)
-if(force!=0):
-    plt.axhline(
-        elastic_theory_without_force / (N-1),
-        linestyle="-.",
-        linewidth=1.8,
-        label=(
-            r"$\langle E_{el}\rangle_{teo}$"
-            f"$ sin fuerza = {elastic_theory_without_force/(N-1):.3f}$"
-        )
-    )
-
-
 plt.xlabel(
     "Tiempo de producción $t$"
 )
 
 
 plt.ylabel(
-    "Energía media acumulada"
+    r"Energía cinética media acumulada por monómero"
 )
 
 
 plt.title(
-    "Convergencia de las energías\n"
+    "Convergencia de la energía cinética\n"
     f"$N={N}$, "
     f"$k_e={ke:g}$, "
     f"$k_BT={kBT:g}, $"
-    f"$F={force:g}, $"
+    f"$F={force:g}$"
 )
 
 
@@ -1192,7 +1160,95 @@ plt.tight_layout()
 
 plt.savefig(
     figures_folder
-    / "polymer_energy_convergence.png",
+    / "polymer_kinetic_energy_convergence.png",
+    dpi=600,
+    bbox_inches="tight"
+)
+
+
+plt.close(
+    fig
+)
+
+
+fig = plt.figure(
+    figsize=(9, 5.5)
+)
+
+
+plt.plot(
+    time[convergence_start_index:],
+    cumulative_elastic_normalized[convergence_start_index:],
+    color="tab:orange",
+    linewidth=1.4,
+    label=(
+        r"$\langle E_{el}\rangle_{acum}$"
+        f" → {mean_elastic/(N-1):.3f}"
+    )
+)
+
+
+plt.axhline(
+    elastic_theory / (N-1),
+    linestyle=":",
+    color="tab:orange",
+    linewidth=1.8,
+    label=(
+        r"$\langle E_{el}\rangle_{teo}$"
+        f" = {elastic_theory/(N-1):.3f}"
+    )
+)
+
+
+if force != 0:
+    plt.axhline(
+        elastic_theory_without_force / (N-1),
+        linestyle="-.",
+        linewidth=1.8,
+        label=(
+            r"$\langle E_{el}\rangle_{teo}$"
+            f" sin fuerza = "
+            f"{elastic_theory_without_force/(N-1):.3f}"
+        )
+    )
+
+
+plt.xlabel(
+    "Tiempo de producción $t$"
+)
+
+
+plt.ylabel(
+    "Energía elástica media acumulada por enlace"
+)
+
+
+plt.title(
+    "Convergencia de la energía elástica\n"
+    f"$N={N}$, "
+    f"$k_e={ke:g}$, "
+    f"$k_BT={kBT:g}, $"
+    f"$F={force:g}$"
+)
+
+
+plt.grid(
+    True,
+    alpha=0.3
+)
+
+
+plt.legend(
+    title=f"$F={force:g}$"
+)
+
+
+plt.tight_layout()
+
+
+plt.savefig(
+    figures_folder
+    / "polymer_elastic_energy_convergence.png",
     dpi=600,
     bbox_inches="tight"
 )

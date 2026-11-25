@@ -58,28 +58,33 @@ def set_config_value(text, name, value):
     return "\n".join(lines) + "\n"
 
 
-def read_final_measurement(number_of_monomers):
+def read_mean_measurement(number_of_monomers):
     with data_file.open(newline="") as file:
         rows = list(csv.DictReader(file))
 
     if not rows:
         raise RuntimeError(f"No hay datos en {data_file}.")
 
-    final_row = rows[-1]
     try:
-        final_time = float(final_row["time"])
-        first_x = float(final_row["x0"])
-        last_x = float(final_row[f"x{number_of_monomers - 1}"])
-    except (KeyError, ValueError) as error:
+        final_time = float(rows[-1]["time"])
+        end_to_end_x_values = [
+            float(row[f"x{number_of_monomers - 1}"])
+            - float(row["x0"])
+            for row in rows
+        ]
+    except (KeyError, TypeError, ValueError) as error:
         raise RuntimeError(
             "El archivo de resultados del polímero no tiene "
             "las columnas esperadas."
         ) from error
 
-    if not all(math.isfinite(value) for value in (final_time, first_x, last_x)):
-        raise RuntimeError("La posición final del polímero no es finita.")
+    if not math.isfinite(final_time) or not all(
+        math.isfinite(value)
+        for value in end_to_end_x_values
+    ):
+        raise RuntimeError("Las medidas de extensión del polímero no son finitas.")
 
-    return final_time, last_x - first_x
+    return final_time, float(np.mean(end_to_end_x_values))
 
 
 def read_existing_measurements(summary_file, spring_constant):
@@ -95,7 +100,7 @@ def read_existing_measurements(summary_file, spring_constant):
         try:
             row_spring_constant = float(row["ke"])
             force = float(row["force"])
-            end_to_end_x = float(row["end_to_end_x"])
+            end_to_end_x = float(row["mean_end_to_end_x"])
             final_time = float(row["final_time"])
         except (KeyError, TypeError, ValueError):
             continue
@@ -158,7 +163,7 @@ def main():
                 check=True,
             )
 
-            final_time, end_to_end_x = read_final_measurement(
+            final_time, end_to_end_x = read_mean_measurement(
                 number_of_monomers
             )
             measurements.append(
@@ -166,7 +171,7 @@ def main():
             )
             print(
                 f"  t_final = {final_time:g}, "
-                f"distancia en +x = {end_to_end_x:g}"
+                f"extension media en +x = {end_to_end_x:g}"
             )
     finally:
         config_file.write_text(original_config)
@@ -181,7 +186,7 @@ def main():
 
     with summary_file.open("w", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow(("ke", "force", "end_to_end_x", "final_time"))
+        writer.writerow(("ke", "force", "mean_end_to_end_x", "final_time"))
         writer.writerows(case_measurements)
 
     measured_forces = [
@@ -219,7 +224,7 @@ def main():
     distances_N=np.array(distances)/(N-1)
 
     plt.figure(figsize=(8, 5))
-    plt.plot(measured_forces, distances_N, marker=".", linestyle="None", label="Datos simulados", color="blue")
+    plt.plot(measured_forces, distances_N, marker=".", linestyle="None", label="Promedio simulado", color="blue")
     plt.plot(measured_forces, Langevin_F, label="Función de Langevin con elasticidad", color="green")
     plt.xlabel("Fuerza aplicada")
     plt.ylabel("$R_{ee}(x)/(N-1)$")

@@ -1,34 +1,32 @@
 POLYMER SIMULATION SUMMARY
 
-N = 64
+N = 4
 ke = 100.0
 l0 = 1.0
 kBT = 1.0
-firstEnd = fixed
-force = 1.0
 eta = 1.0
-h = 0.01
+h = 0.001
 
-Center of mass (final) = (7.823533, 1.626392, -1.086545)
-<radius of gyration> = 6.841291
-std radius of gyration = 1.263959
-final radius of gyration = 5.586481
-<radius of gyration squared> = 48.400857
-<end-to-end distance> = 22.064055
-<end-to-end distance squared> = 504.557831
-Center-of-mass diffusion coefficient = 0.000008
+Center of mass (final) = (154.821933, 686.229863, 367.315296)
+<radius of gyration> = 0.798863
+std radius of gyration = 0.145781
+final radius of gyration = 1.079898
+<radius of gyration squared> = 0.659434
+<end-to-end distance> = 1.673389
+<end-to-end distance squared> = 3.180808
+Center-of-mass diffusion coefficient = 0.319176
 
-<Ekin> experimental = 94.287404
-<Ekin> theoretical = 94.500000
-relative error = 0.225 %
+<Ekin> experimental = 5.978140
+<Ekin> theoretical = 6.000000
+relative error = 0.364 %
 
-<Eelastic> experimental = 32.717303
-<Eelastic> theoretical = 32.631491
-<Eelastic>/N experimental = 0.511208
-<Eelastic>/N theoretical = 0.509867
-relative error = 0.263 %
+<Eelastic> experimental = 1.529386
+<Eelastic> theoretical = 1.529703
+<Eelastic>/N experimental = 0.382347
+<Eelastic>/N theoretical = 0.382426
+relative error = 0.021 %
 
-<bond length> experimental = 1.023257
-<bond length> theoretical = 1.022929
-relative error = 0.032 %
-std bond length = 0.099225
+<bond length> experimental = 1.019775
+<bond length> theoretical = 1.019802
+relative error = 0.003 %
+std bond length = 0.099020

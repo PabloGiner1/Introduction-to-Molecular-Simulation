@@ -119,12 +119,12 @@ plt.savefig(
 # Correlación
 plt.figure(figsize=(7, 7))
 
-number_scatter = 50000
+number_scatter = 300000
 
 plt.scatter(
     u[:number_scatter],
     u[1:number_scatter + 1],
-    s=5,
+    s=1,
     alpha=0.4
 )
 
