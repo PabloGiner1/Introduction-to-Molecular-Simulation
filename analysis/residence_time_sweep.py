@@ -110,12 +110,12 @@ mass = 1.0
 
 dt = 0.01
 
-total_time = 30000.0
+total_time = 500000.0
 
 
 # Número máximo de puntos
 # almacenados en el CSV.
-max_saved_points = 120000
+max_saved_points = 500000
 
 
 # Alturas de la barrera.

@@ -30,7 +30,7 @@ int main()
     FILE *configFile;
 
     // Modelo por defecto
-    model = HARMONIC;
+    model = DOUBLE_WELL; 
 
     // Parámetros generales
     simulation.mass = 1.0;
@@ -55,7 +55,7 @@ int main()
     polymerParameters.firstEndFixed = true;
 
     // Valores por defecto
-    algorithm = EULER_MARUYAMA;
+    algorithm = GJF;
 
     strcpy(
         algorithmText,
