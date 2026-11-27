@@ -7,26 +7,26 @@ kBT = 1.0
 eta = 0.1
 h = 0.01
 
-Center of mass (final) = (84.318622, 436.928665, 206.933638)
-<radius of gyration> = 3.236733
-std radius of gyration = 0.789610
-final radius of gyration = 2.262970
-<radius of gyration squared> = 11.099922
-<end-to-end distance> = 7.443441
-<end-to-end distance squared> = 65.324943
-Center-of-mass diffusion coefficient = 0.219182
+Center of mass (final) = (59.318445, -1.498322, -0.955951)
+<radius of gyration> = 34.872852
+std radius of gyration = 0.255506
+final radius of gyration = 34.688223
+<radius of gyration squared> = 1216.181068
+<end-to-end distance> = 118.916943
+<end-to-end distance squared> = 14141.887103
+Center-of-mass diffusion coefficient = -0.000000
 
-<Ekin> experimental = 95.852565
-<Ekin> theoretical = 96.000000
-relative error = 0.154 %
+<Ekin> experimental = 94.153583
+<Ekin> theoretical = 94.500000
+relative error = 0.367 %
 
-<Eelastic> experimental = 32.169834
-<Eelastic> theoretical = 32.123762
-<Eelastic>/N experimental = 0.502654
-<Eelastic>/N theoretical = 0.501934
-relative error = 0.143 %
+<Eelastic> experimental = 2575.132420
+<Eelastic> theoretical = 2575.065333
+<Eelastic>/N experimental = 40.236444
+<Eelastic>/N theoretical = 40.235396
+relative error = 0.003 %
 
-<bond length> experimental = 1.019941
-<bond length> theoretical = 1.019802
-relative error = 0.014 %
-std bond length = 0.099079
+<bond length> experimental = 1.898578
+<bond length> theoretical = 1.898615
+relative error = 0.002 %
+std bond length = 0.099875

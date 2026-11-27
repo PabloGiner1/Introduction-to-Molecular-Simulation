@@ -986,38 +986,38 @@ fig = plt.figure(
 
 plt.plot(
     time,
-    kinetic,
+    kinetic / free_monomers,
     linewidth=0.7,
-    label=r"$\langle E_{cin}\rangle_{acum}(t)$"
+    label=r"$\langle E_{cin}\rangle_{acum}/N_{libres}$"
 )
 
 
 plt.plot(
     time,
-    elastic,
+    elastic / (N - 1),
     linewidth=0.7,
-    label=r"$\langle E_{el}\rangle_{acum}(t)$"
+    label=r"$\langle E_{el}\rangle_{acum}/(N-1)$"
 )
 
 
 plt.axhline(
-    kinetic_theory,
+    kinetic_theory / free_monomers,
     linestyle="--",
     linewidth=1.8,
     label=(
-        r"$\langle E_{cin}\rangle_{teo}$"
-        f" = {kinetic_theory:.3f}"
+        r"$\langle E_{cin}\rangle_{teo}/N_{libres}$"
+        f" = {kinetic_theory/free_monomers:.3f}"
     )
 )
 
 
 plt.axhline(
-    elastic_theory,
+    elastic_theory / (N - 1),
     linestyle=":",
     linewidth=1.8,
     label=(
-        r"$\langle E_{el}\rangle_{teo}$"
-        f" = {elastic_theory:.3f}"
+        r"$\langle E_{el}\rangle_{teo}/(N-1)$"
+        f" = {elastic_theory/(N - 1):.3f}"
     )
 )
 
@@ -1028,12 +1028,11 @@ plt.xlabel(
 
 
 plt.ylabel(
-    "Energía"
+    "Energía media normalizada"
 )
 
-
 plt.title(
-    "Energías instantáneas del polímero\n"
+    "Energías medias acumuladas normalizadas\n"
     f"$N={N}$, "
     f"$k_e={ke:g}$, "
     f"$k_BT={kBT:g}$"
@@ -1049,10 +1048,10 @@ plt.grid(
 
 plt.legend(
     title=(
-        r"$\langle E_{cin}\rangle_{exp}$"
-        f" = {mean_kinetic:.3f}\n"
-        r"$\langle E_{el}\rangle_{exp}$"
-        f" = {mean_elastic:.3f}"
+        r"$\langle E_{cin}\rangle_{exp}/N_{libres}$"
+        f" = {mean_kinetic/free_monomers:.3f}\n"
+        r"$\langle E_{el}\rangle_{exp}/(N-1)$"
+        f" = {mean_elastic/(N - 1):.3f}"
     )
 )
 
@@ -1190,6 +1189,7 @@ plt.axhline(
     )
 )
 
+#Si la fuerza es muy grande cunde quitar la linea de energia elastica sin fuerza, ya que no tiene sentido compararlas
 
 if force != 0:
     plt.axhline(

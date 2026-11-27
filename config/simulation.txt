@@ -2,7 +2,7 @@ model=POLYMER
 algorithm=GJF
 
 N=64
-ke=10000.0
+ke=100.0
 l0=1.0
 force=89.333333
 firstEnd=fixed
