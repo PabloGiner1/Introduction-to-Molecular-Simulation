@@ -157,6 +157,14 @@ with data_file.open(
     )
 
 
+if "meanKinetic" not in column_names or "meanElastic" not in column_names:
+
+    raise RuntimeError(
+        "Faltan las columnas acumuladas meanKinetic y meanElastic "
+        "en polymer.csv."
+    )
+
+
 data = np.loadtxt(
     data_file,
     delimiter=",",
@@ -199,7 +207,7 @@ time = (
 kinetic = (
     data[
         :,
-        1
+        column_names.index("meanKinetic")
     ]
 )
 
@@ -207,7 +215,7 @@ kinetic = (
 elastic = (
     data[
         :,
-        2
+        column_names.index("meanElastic")
     ]
 )
 
@@ -259,25 +267,19 @@ coordinates = (
 # Valores experimentales
 # ===================================
 
-mean_kinetic = float(
-    np.mean(
-        kinetic
-    )
-)
+mean_kinetic = float(kinetic[-1])
 
 
-mean_elastic = float(
-    np.mean(
-        elastic
-    )
-)
+mean_elastic = float(elastic[-1])
 
 
 mean_total = float(
-    np.mean(
-        kinetic
-        + elastic
-    )
+    mean_kinetic
+    + mean_elastic
+)
+
+first_end_is_fixed = (
+    parameters.get("firstEnd", "fixed") == "fixed"
 )
 
 
@@ -289,7 +291,7 @@ mean_total = float(
 #
 # <Ecin> = 3 N_libres kBT / 2
 
-free_monomers = N - int(parameters.get("firstEnd", "fixed") == "fixed")
+free_monomers = N - int(first_end_is_fixed)
 kinetic_theory = (
     1.5
     * free_monomers
@@ -605,6 +607,16 @@ animation_coordinates = (
     .copy()
 )
 
+if not first_end_is_fixed:
+
+    animation_centers = np.mean(
+        animation_coordinates,
+        axis=1,
+        keepdims=True
+    )
+
+    animation_coordinates -= animation_centers
+
 
 coordinate_min = np.min(
     animation_coordinates,
@@ -843,16 +855,22 @@ ax_animation.set_box_aspect(
 
 ax_animation.set_xlabel(
     "$x$"
+    if first_end_is_fixed
+    else "$x-R_{CM,x}$"
 )
 
 
 ax_animation.set_ylabel(
     "$y$"
+    if first_end_is_fixed
+    else "$y-R_{CM,y}$"
 )
 
 
 ax_animation.set_zlabel(
     "$z$"
+    if first_end_is_fixed
+    else "$z-R_{CM,z}$"
 )
 
 
@@ -958,7 +976,7 @@ plt.close(
 
 
 # ===================================
-# 2. Energías instantáneas
+# 2. Energías medias acumuladas
 # ===================================
 
 fig = plt.figure(
@@ -970,8 +988,7 @@ plt.plot(
     time,
     kinetic,
     linewidth=0.7,
-    alpha=0.35,
-    label="$E_{cin}(t)$"
+    label=r"$\langle E_{cin}\rangle_{acum}(t)$"
 )
 
 
@@ -979,8 +996,7 @@ plt.plot(
     time,
     elastic,
     linewidth=0.7,
-    alpha=0.35,
-    label="$E_{el}(t)$"
+    label=r"$\langle E_{el}\rangle_{acum}(t)$"
 )
 
 
@@ -1061,38 +1077,13 @@ plt.close(
 # 3. Convergencia de energías
 # ===================================
 
-sample_count = (
-    np.arange(
-        len(
-            time
-        )
-    )
-    + 1
-)
-
-
-cumulative_kinetic = (
-    np.cumsum(
-        kinetic
-    )
-    / sample_count
-)
-
-
-cumulative_elastic = (
-    np.cumsum(
-        elastic
-    )
-    / sample_count
-)
-
 cumulative_kinetic_normalized = (
-    cumulative_kinetic
+    kinetic
     / free_monomers
 )
 
 cumulative_elastic_normalized = (
-    cumulative_elastic
+    elastic
     / (N - 1)
 )
 

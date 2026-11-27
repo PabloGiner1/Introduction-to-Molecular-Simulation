@@ -172,9 +172,25 @@ def main():
             print(
                 f"  t_final = {final_time:g}, "
                 f"extension media en +x = {end_to_end_x:g}"
-            )
+        )
     finally:
         config_file.write_text(original_config)
+
+
+
+    # # Leer los datos de la tabla de resultados, COMENTAR SI VAS A EJECUTAR LA SIMULACION 
+    # with summary_file.open(newline="") as file:
+    #     rows = list(csv.DictReader(file))
+
+
+    # measured_forces = np.array([float(row["force"]) for row in rows])
+    # distances = np.array([
+    #     float(row["mean_end_to_end_x"])
+    #     for row in rows
+    # ])
+
+
+
 
     existing_measurements = read_existing_measurements(
         summary_file,
@@ -198,13 +214,7 @@ def main():
         for row in case_measurements
     ]
 
-    # # Leer los datos de la tabla de resultados, COMENTAR SI VAS A EJECUTAR LA SIMULACION 
-    # with summary_file.open(newline="") as file:
-    #     rows = list(csv.DictReader(file))
 
-
-    # measured_forces = np.array([float(row["force"]) for row in rows])
-    # distances = np.array([float(row["end_to_end_x"]) for row in rows])
 
     #Funcion de langevin teorica
     N= int(float(config_values["N"]))
@@ -217,7 +227,7 @@ def main():
     x = np.array(measured_forces) * l0 / kBT
     Langevin = l0 * (1 / np.tanh(x) - 1 / x)
 
-    Langevin_F = l0 * (1 / np.tanh(x) - 1 / x) + x / l0 * kBT / ke
+    Langevin_F = l0 * (1 / np.tanh(x) - 1 / x) + np.array(measured_forces) / ke
 
 
     figure_file = figures_folder / f"polymer_end_to_end_vs_force_k_{ke:g}.png"

@@ -5,7 +5,8 @@
 #include <stdlib.h>
 
 #define POLYMER_WINDOW 200000
-#define POLYMER_MAX_THERMALIZATION_TIME 100000.0
+#define POLYMER_DECORRELATION_GAP 200000
+#define POLYMER_MAX_THERMALIZATION_TIME 1000000.0
 
 void runPolymerSimulation(
     int algorithm,
@@ -23,14 +24,18 @@ void runPolymerSimulation(
 
     double kineticEnergy;
     double elasticEnergy;
-
+    double meanKineticEnergy;
+    double meanElasticEnergy;
+    double kineticEnergySum;
     double elasticEnergySum;
-    double elasticEnergySquaredSum;
     double elasticEnergyMean;
-    double elasticEnergyVariance;
     double elasticEnergyStd;
     double previousElasticEnergyMean;
-    double previousElasticEnergyStd;
+    double kineticEnergyMean;
+    double kineticEnergyM2;
+    double kineticEnergyStd;
+    double previousKineticEnergyMean;
+    double elasticEnergyM2;
 
     double tolerance;
 
@@ -50,6 +55,8 @@ void runPolymerSimulation(
 
     int consecutiveWindows;
     int requiredWindows;
+
+    int productionStepCount;
 
     int hasPreviousWindow;
     int thermalized;
@@ -152,9 +159,6 @@ void runPolymerSimulation(
         thermalized == 0 &&
         thermalizationStep < maxThermalizationSteps)
     {
-        elasticEnergySum = 0.0;
-        elasticEnergySquaredSum = 0.0;
-
         stepsInWindow =
             maxThermalizationSteps - thermalizationStep;
 
@@ -163,6 +167,11 @@ void runPolymerSimulation(
         {
             stepsInWindow = POLYMER_WINDOW;
         }
+
+        elasticEnergyMean = 0.0;
+        elasticEnergyM2 = 0.0;
+        kineticEnergyMean = 0.0;
+        kineticEnergyM2 = 0.0;
 
         for (
             windowStep = 0;
@@ -187,50 +196,85 @@ void runPolymerSimulation(
                     y,
                     z,
                     polymer);
-            elasticEnergySum += elasticEnergy;
-            elasticEnergySquaredSum += elasticEnergy * elasticEnergy;
-        }
+            kineticEnergy =
+                polymerKineticEnergy(
+                    vx,
+                    vy,
+                    vz,
+                    simulation,
+                    polymer);
 
-        elasticEnergyMean =
-            elasticEnergySum / stepsInWindow;
+            int sampleCount =
+                windowStep + 1;
 
-        elasticEnergyVariance =
-            elasticEnergySquaredSum / stepsInWindow -
-            elasticEnergyMean * elasticEnergyMean;
+            double elasticDelta =
+                elasticEnergy - elasticEnergyMean;
+            elasticEnergyMean +=
+                elasticDelta / sampleCount;
+            elasticEnergyM2 +=
+                elasticDelta *
+                (elasticEnergy - elasticEnergyMean);
 
-        if (
-            elasticEnergyVariance < 0.0)
-        {
-            elasticEnergyVariance = 0.0;
+            double kineticDelta =
+                kineticEnergy - kineticEnergyMean;
+            kineticEnergyMean +=
+                kineticDelta / sampleCount;
+            kineticEnergyM2 +=
+                kineticDelta *
+                (kineticEnergy - kineticEnergyMean);
         }
 
         elasticEnergyStd =
-            sqrt(
-                elasticEnergyVariance);
+            stepsInWindow > 1
+                ? sqrt(elasticEnergyM2 / (stepsInWindow - 1))
+                : 0.0;
+        kineticEnergyStd =
+            stepsInWindow > 1
+                ? sqrt(kineticEnergyM2 / (stepsInWindow - 1))
+                : 0.0;
 
         printf(
             "Thermalization step %d: "
-            "mean elastic energy = %.5f, "
-            "std = %.5f\n",
+            "elastic mean/std = %.5f/%.5f, "
+            "kinetic mean/std = %.5f/%.5f\n",
             thermalizationStep,
             elasticEnergyMean,
-            fabs(elasticEnergyStd-previousElasticEnergyStd)/
-                (fabs(previousElasticEnergyStd) > 1e-10 ? fabs(previousElasticEnergyStd) : 1.0));
+            elasticEnergyStd,
+            kineticEnergyMean,
+            kineticEnergyStd);
 
         if (
             thermalizationStep >= minThermalizationSteps &&
             hasPreviousWindow)
         {
-            double meanScale =
+            double elasticMeanScale =
                 fmax(fabs(previousElasticEnergyMean), simulation.kBT);
-            double stdScale =
-                fmax(fabs(previousElasticEnergyStd), simulation.kBT);
-
-            if (
+            double kineticMeanScale =
+                fmax(fabs(previousKineticEnergyMean), simulation.kBT);
+            double elasticMeanChange =
                 fabs(elasticEnergyMean - previousElasticEnergyMean) /
-                    meanScale < tolerance &&
-                fabs(elasticEnergyStd - previousElasticEnergyStd) /
-                    stdScale < tolerance)
+                elasticMeanScale;
+            double kineticMeanChange =
+                fabs(kineticEnergyMean - previousKineticEnergyMean) /
+                kineticMeanScale;
+
+            int elasticStable =
+                elasticMeanChange < tolerance;
+            int kineticStable =
+                kineticMeanChange < tolerance;
+
+            printf(
+                "  Relative mean changes: elastic=%.3f%%, "
+                "kinetic=%.3f%%; "
+                "stable windows=%d/%d\n",
+                100.0 * elasticMeanChange,
+                100.0 * kineticMeanChange,
+                (elasticStable && kineticStable)
+                    ? consecutiveWindows + 1
+                    : 0,
+                requiredWindows);
+
+            if (elasticStable && kineticStable)
             {
                 consecutiveWindows++;
             }
@@ -247,13 +291,46 @@ void runPolymerSimulation(
         }
 
         previousElasticEnergyMean = elasticEnergyMean;
-        previousElasticEnergyStd = elasticEnergyStd;
+        previousKineticEnergyMean = kineticEnergyMean;
         hasPreviousWindow = 1;
 
         if (
             consecutiveWindows >= requiredWindows)
         {
             thermalized = 1;
+        }
+        else
+        {
+            int gapRemaining =
+                POLYMER_DECORRELATION_GAP;
+
+            if (
+                maxThermalizationSteps - thermalizationStep <
+                gapRemaining)
+            {
+                gapRemaining =
+                    maxThermalizationSteps -
+                    thermalizationStep;
+            }
+
+            for (
+                int gapStep = 0;
+                gapStep < gapRemaining &&
+                thermalizationStep < maxThermalizationSteps;
+                gapStep++)
+            {
+                polymerGJFStep(
+                    x,
+                    y,
+                    z,
+                    vx,
+                    vy,
+                    vz,
+                    simulation,
+                    polymer);
+
+                thermalizationStep++;
+            }
         }
 
     }
@@ -295,7 +372,7 @@ void runPolymerSimulation(
     // Cabecera
     fprintf(
         file,
-        "time,kinetic,elastic");
+        "time,kinetic,elastic,meanKinetic,meanElastic");
 
     for (
         int i = 0;
@@ -315,6 +392,10 @@ void runPolymerSimulation(
         "\n");
 
     // Producción
+    kineticEnergySum = 0.0;
+    elasticEnergySum = 0.0;
+    productionStepCount = 0;
+
     for (
         int step = 0;
         step <= numberOfSteps;
@@ -323,30 +404,41 @@ void runPolymerSimulation(
         time =
             step * simulation.dt;
 
+        kineticEnergy =
+            polymerKineticEnergy(
+                vx,
+                vy,
+                vz,
+                simulation,
+                polymer);
+
+        elasticEnergy =
+            polymerElasticEnergy(
+                x,
+                y,
+                z,
+                polymer);
+
+        kineticEnergySum += kineticEnergy;
+        elasticEnergySum += elasticEnergy;
+        productionStepCount++;
+
+        meanKineticEnergy =
+            kineticEnergySum / productionStepCount;
+        meanElasticEnergy =
+            elasticEnergySum / productionStepCount;
+
         if (
             step % saveEvery == 0 || step == numberOfSteps)
         {
-            kineticEnergy =
-                polymerKineticEnergy(
-                    vx,
-                    vy,
-                    vz,
-                    simulation,
-                    polymer);
-
-            elasticEnergy =
-                polymerElasticEnergy(
-                    x,
-                    y,
-                    z,
-                    polymer);
-
             fprintf(
                 file,
-                "%.10f,%.10f,%.10f",
+                "%.10f,%.10f,%.10f,%.10f,%.10f",
                 time,
                 kineticEnergy,
-                elasticEnergy);
+                elasticEnergy,
+                meanKineticEnergy,
+                meanElasticEnergy);
 
             for (
                 int i = 0;

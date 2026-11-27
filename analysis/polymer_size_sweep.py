@@ -510,6 +510,20 @@ try:
             )
 
 
+        if (
+            "meanKinetic"
+            not in column_names
+            or "meanElastic"
+            not in column_names
+        ):
+
+            raise RuntimeError(
+                "Faltan las columnas acumuladas meanKinetic "
+                "y meanElastic en polymer.csv "
+                f"para N={N}"
+            )
+
+
         data = np.loadtxt(
             data_file,
             delimiter=",",
@@ -571,7 +585,7 @@ try:
         kinetic = (
             data[
                 :,
-                1
+                column_names.index("kinetic")
             ]
         )
 
@@ -579,7 +593,7 @@ try:
         elastic = (
             data[
                 :,
-                2
+                column_names.index("elastic")
             ]
         )
 
